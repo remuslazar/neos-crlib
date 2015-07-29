@@ -131,7 +131,9 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 				$node = $node[0];
 				if (!$property || $this->matchTermInProperty($node, $search, $property)) {
 					if ($json) {
-						print json_encode($node) . "\n";
+						echo json_encode($node), "\n";
+						flush();
+						$node=null;
 					} else {
 						$this->displayNodes([$node]);
 					}
@@ -139,6 +141,11 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 			}
 		}
 	}
+
+	private function reportMemoryUsage() {
+		$this->outputLine(' > mem: %.1f MB', [memory_get_peak_usage()/1024/1024]);
+	}
+
 
 	private function matchTermInProperty($node, $term, $propertyName) {
 		if (is_array($node)) {
