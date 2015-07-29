@@ -101,20 +101,20 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 	 *
 	 * @param string $path Start path, relative to the site root
 	 * @param string $type NodeType filter (csv list)
-	 * @param string $search Search term (regex when used with $property, else string)
+	 * @param string $search Search string for exact match or regex like e.g. '/^myprefix/i'
 	 * @param string $property Limit the matching to this property (if unset search in the full json blob)
 	 * @param bool $useSubtypes Include inherited node types
 	 * @param int $limit limit the result set
 	 * @param bool $count Display only the count and not the record data itself
 	 * @param bool $json Output data JSON formatted (one record per line)
 	 */
-	public function findCommand($path=null, $type=null, $search='', $property='',
+	public function findCommand($path=null, $type=null, $search=null, $property='',
 	                            $useSubtypes=true, $limit=null, $count=false, $json=false) {
 		$path = $path ? $this->getPath($path) : null;
 		$type = $this->getTypes($type, $useSubtypes);
 
 		if ($count) {
-			if ($property) {
+			if ($property !== null) {
 				// unfortunately we can't use the getCount() method here
 				$count = 0;
 				$iterable = $this->nodeQueryService->findQuery($type, $path)->iterate(null, Query::HYDRATE_ARRAY);
@@ -128,7 +128,7 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 
 			$this->outputLine('%d node(s).', [$count]);
 		} else {
-			$query = $this->nodeQueryService->findQuery($type, $path, $property ? null : $search);
+			$query = $this->nodeQueryService->findQuery($type, $path, $property !== null ? null : $search);
 
 			$query->setMaxResults(self::BATCH_SIZE); // max batch size
 			if ($limit !== null) $query->setMaxResults($limit);
@@ -143,7 +143,7 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 				foreach ($iterable as $row) {
 					$i++;
 					$node = $row[0];
-					if (!$property || $this->matchTermInProperty($node, $search, $property)) {
+					if ($property === null || $this->matchTermInProperty($node, $search, $property)) {
 						if ($json) {
 							echo json_encode($node), "\n";
 						} else {
@@ -167,10 +167,24 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 	private function matchTermInProperty($node, $term, $propertyName) {
 		if (is_array($node)) {
 			return isset($node['properties'][$propertyName]) &&
-			preg_match('/'.$term.'/i', $node['properties'][$propertyName]);
+			$this->searchTermMatch($term, $node['properties'][$propertyName]);
 		} else {
 			return $node->hasProperty($propertyName) &&
-			preg_match('/'.$term.'/i', $node->getProperty($propertyName));
+			$this->searchTermMatch($term,$node->getProperty($propertyName));
+		}
+	}
+
+	/**
+	 * @param string $term string for exact match or regex
+	 * @param string $value
+	 *
+	 * @return bool|int
+	 */
+	private function searchTermMatch($term, $value) {
+		if (strpos($term, '/') === 0) {
+			return preg_match($term, $value);
+		} else {
+			return $term == $value;
 		}
 	}
 
