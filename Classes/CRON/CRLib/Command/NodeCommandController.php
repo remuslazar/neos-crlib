@@ -128,7 +128,6 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 
 			$this->outputLine('%d node(s).', [$count]);
 		} else {
-			$this->reportMemoryUsage();
 			$query = $this->nodeQueryService->findQuery($type, $path, $property ? null : $search);
 
 			$query->setMaxResults(self::BATCH_SIZE); // max batch size
@@ -158,7 +157,6 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 				$offset += self::BATCH_SIZE;
 				$query->setFirstResult($offset);
 			}
-			$this->reportMemoryUsage();
 		}
 	}
 
