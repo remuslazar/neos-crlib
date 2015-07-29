@@ -30,19 +30,56 @@ class NodeQueryService {
 	protected $entityManager;
 
 	/**
-	 * @param Context $context
+	 * Gets a NodeData query obj.
+	 *
+	 * @param null $nodeTypeFilter csv list of NodeTypes to filter
+	 * @param null $path filter by path
+	 * @param string $searchTerm search term
+	 * @param string $workspace workspace, defaults to the live workspace
+	 *
 	 * @return Query
 	 */
-	public function getAllNodesDataQuery($context) {
+	public function findQuery($nodeTypeFilter=null, $path=null, $searchTerm='', $workspace='live') {
+		$queryBuilder = $this->getQueryBuilder($nodeTypeFilter, $path, $searchTerm, $workspace);
+		return $queryBuilder->getQuery();
+	}
 
+	/**
+	 * Gets a query to fetch a single node by its identifier
+	 *
+	 * @param string $identifier Node Identifier
+	 * @param string $workspace Workspace name
+	 *
+	 * @return Query
+	 */
+	public function getByIdentifierQuery($identifier, $workspace) {
 		$queryBuilder = $this->entityManager->createQueryBuilder();
 		/** @var QueryBuilder $queryBuilder */
 		$queryBuilder->select('n')
 		             ->from('TYPO3\TYPO3CR\Domain\Model\NodeData', 'n')
 		             ->where('n.workspace IN (:workspaces)')
-		             ->setParameter('workspaces', [$context->getWorkspace()->getName()]);
+		             ->setParameter('workspaces', $workspace);
+		$queryBuilder->andWhere('n.identifier = :identifier')
+		             ->setParameter('identifier', $identifier);
 
 		return $queryBuilder->getQuery();
+	}
+
+	/**
+	 * Gets the count of all records matching the criteria
+	 *
+	 * @param null $nodeTypeFilter csv list of NodeTypes to filter
+	 * @param null $path filter by path
+	 * @param string $searchTerm search term
+	 * @param string $workspace workspace, defaults to the live workspace
+	 *
+	 * @return int
+	 */
+	public function getCount($nodeTypeFilter=null, $path=null, $searchTerm='', $workspace='live') {
+		$queryBuilder = $this->getQueryBuilder($nodeTypeFilter, $path, $searchTerm, $workspace);
+		$queryBuilder->select('COUNT(n)');
+
+		return (int)$queryBuilder->getQuery()->getSingleScalarResult();
 	}
 
 	private function getQueryBuilder($types, $path, $searchTerm, $workspace) {
@@ -71,49 +108,6 @@ class NodeQueryService {
 		$queryBuilder->orderBy('n.path', 'ASC');
 
 		return $queryBuilder;
-	}
-
-	public function getByIdentifierQuery($identifier, $workspace) {
-		$queryBuilder = $this->entityManager->createQueryBuilder();
-		/** @var QueryBuilder $queryBuilder */
-		$queryBuilder->select('n')
-		             ->from('TYPO3\TYPO3CR\Domain\Model\NodeData', 'n')
-		             ->where('n.workspace IN (:workspaces)')
-		             ->setParameter('workspaces', $workspace);
-		$queryBuilder->andWhere('n.identifier = :identifier')
-		             ->setParameter('identifier', $identifier);
-		return $queryBuilder->getQuery();
-	}
-
-	/**
-	 * Gets the count of all records matching the criteria
-	 *
-	 * @param null $nodeTypeFilter csv list of NodeTypes to filter
-	 * @param null $path filter by path
-	 * @param string $searchTerm search term
-	 * @param string $workspace workspace, defaults to the live workspace
-	 *
-	 * @return int
-	 */
-	public function getCount($nodeTypeFilter=null, $path=null, $searchTerm='', $workspace='live') {
-		$queryBuilder = $this->getQueryBuilder($nodeTypeFilter, $path, $searchTerm, $workspace);
-		$queryBuilder->select('COUNT(n)');
-		return (int)$queryBuilder->getQuery()->getSingleScalarResult();
-	}
-
-	/**
-	 * Gets a NodeData query obj.
-	 *
-	 * @param null $nodeTypeFilter csv list of NodeTypes to filter
-	 * @param null $path filter by path
-	 * @param string $searchTerm search term
-	 * @param string $workspace workspace, defaults to the live workspace
-	 *
-	 * @return Query
-	 */
-	public function findQuery($nodeTypeFilter=null, $path=null, $searchTerm='', $workspace='live') {
-		$queryBuilder = $this->getQueryBuilder($nodeTypeFilter, $path, $searchTerm, $workspace);
-		return $queryBuilder->getQuery();
 	}
 
 }
