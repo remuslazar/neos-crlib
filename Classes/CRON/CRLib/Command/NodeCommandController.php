@@ -108,13 +108,13 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 	 * @param bool $count Display only the count and not the record data itself
 	 * @param bool $json Output data JSON formatted (one record per line)
 	 */
-	public function findCommand($path=null, $type=null, $search=null, $property='',
+	public function findCommand($path=null, $type=null, $search='', $property='',
 	                            $useSubtypes=true, $limit=null, $count=false, $json=false) {
 		$path = $path ? $this->getPath($path) : null;
 		$type = $this->getTypes($type, $useSubtypes);
 
 		if ($count) {
-			if ($property !== null) {
+			if ($property) {
 				// unfortunately we can't use the getCount() method here
 				$count = 0;
 				$iterable = $this->nodeQueryService->findQuery($type, $path)->iterate(null, Query::HYDRATE_ARRAY);
@@ -128,7 +128,7 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 
 			$this->outputLine('%d node(s).', [$count]);
 		} else {
-			$query = $this->nodeQueryService->findQuery($type, $path, $property !== null ? null : $search);
+			$query = $this->nodeQueryService->findQuery($type, $path, $property ? null : $search);
 
 			$query->setMaxResults(self::BATCH_SIZE); // max batch size
 			if ($limit !== null) $query->setMaxResults($limit);
@@ -143,7 +143,7 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 				foreach ($iterable as $row) {
 					$i++;
 					$node = $row[0];
-					if ($property === null || $this->matchTermInProperty($node, $search, $property)) {
+					if (!$property || $this->matchTermInProperty($node, $search, $property)) {
 						if ($json) {
 							echo json_encode($node), "\n";
 						} else {
@@ -170,7 +170,7 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 			$this->searchTermMatch($term, $node['properties'][$propertyName]);
 		} else {
 			return $node->hasProperty($propertyName) &&
-			$this->searchTermMatch($term,$node->getProperty($propertyName));
+			$this->searchTermMatch($term, $node->getProperty($propertyName));
 		}
 	}
 
