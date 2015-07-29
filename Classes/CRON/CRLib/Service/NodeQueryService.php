@@ -73,6 +73,18 @@ class NodeQueryService {
 		return $queryBuilder;
 	}
 
+	public function getByIdentifierQuery($identifier, $workspace) {
+		$queryBuilder = $this->entityManager->createQueryBuilder();
+		/** @var QueryBuilder $queryBuilder */
+		$queryBuilder->select('n')
+		             ->from('TYPO3\TYPO3CR\Domain\Model\NodeData', 'n')
+		             ->where('n.workspace IN (:workspaces)')
+		             ->setParameter('workspaces', $workspace);
+		$queryBuilder->andWhere('n.identifier = :identifier')
+		             ->setParameter('identifier', $identifier);
+		return $queryBuilder->getQuery();
+	}
+
 	/**
 	 * Gets the count of all records matching the criteria
 	 *

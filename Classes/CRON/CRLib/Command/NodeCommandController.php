@@ -199,27 +199,35 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 	 * Dump all data of the node specified by the uuid
 	 *
 	 * @param string $uuid uuid of the node, e.g. 4b3d2a07-6d1f-5311-3431-cc80d41c3622
+	 * @param bool $json Output data JSON formatted (one record per line)
 	 */
-	public function dumpCommand($uuid) {
-		$node = $this->context->getNodeByIdentifier($uuid);
+	public function dumpCommand($uuid, $json=false) {
 
-		if (!$node) {
-			$this->outputLine('Not found.');
-			$this->quit(1);
-		}
-
-		$this->outputLine();
-		$this->outputLine('%s', [$node->getNodeType()]);
-		$this->outputLine();
-
-		foreach($node->getProperties() as $propertyName => $value) {
-			try {
-				printf('%-25s: "%s"', $propertyName, $value === null ? 'NULL' : $value);
-				$this->outputLine();
-			} catch (\Exception $e) {
+		if ($json) {
+			$query = $this->nodeQueryService->getByIdentifierQuery($uuid, $this->context->getWorkspaceName());
+			if ($result = $query->getResult(Query::HYDRATE_ARRAY)) {
+				echo json_encode($result[0]);
 			}
+		} else {
+			$node = $this->context->getNodeByIdentifier($uuid);
+			if (!$node) {
+				$this->outputLine('Not found.');
+				$this->quit(1);
+			}
+
+			$this->outputLine();
+			$this->outputLine('%s', [$node->getNodeType()]);
+			$this->outputLine();
+
+			foreach($node->getProperties() as $propertyName => $value) {
+				try {
+					printf('%-25s: "%s"', $propertyName, $value === null ? 'NULL' : $value);
+					$this->outputLine();
+				} catch (\Exception $e) {
+				}
+			}
+			$this->outputLine();
 		}
-		$this->outputLine();
 	}
 
 	/**
