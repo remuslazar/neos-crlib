@@ -21,6 +21,8 @@ use TYPO3\TYPO3CR\Domain\Service\NodeTypeManager;
  */
 class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 
+	const BATCH_SIZE = 20000;
+
 	/**
 	 * @Flow\Inject
 	 * @var NodeTypeManager
@@ -102,11 +104,12 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 	 * @param string $search Search term (regex when used with $property, else string)
 	 * @param string $property Limit the matching to this property (if unset search in the full json blob)
 	 * @param bool $useSubtypes Include inherited node types
+	 * @param int $limit limit the result set
 	 * @param bool $count Display only the count and not the record data itself
 	 * @param bool $json Output data JSON formatted (one record per line)
 	 */
 	public function findCommand($path=null, $type=null, $search='', $property='',
-	                            $useSubtypes=true, $count=false, $json=false) {
+	                            $useSubtypes=true, $limit=null, $count=false, $json=false) {
 		$path = $path ? $this->getPath($path) : null;
 		$type = $this->getTypes($type, $useSubtypes);
 
@@ -114,8 +117,8 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 			if ($property) {
 				// unfortunately we can't use the getCount() method here
 				$count = 0;
-				$nodes = $this->nodeQueryService->findQuery($type, $path)->iterate(null, Query::HYDRATE_ARRAY);
-				foreach($nodes as $node) {
+				$iterable = $this->nodeQueryService->findQuery($type, $path)->iterate(null, Query::HYDRATE_ARRAY);
+				foreach($iterable as $node) {
 					$node = $node[0];
 					if ($this->matchTermInProperty($node, $search, $property)) { $count++; }
 				}
@@ -125,27 +128,43 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 
 			$this->outputLine('%d node(s).', [$count]);
 		} else {
+			$this->reportMemoryUsage();
 			$query = $this->nodeQueryService->findQuery($type, $path, $property ? null : $search);
-			$nodes = $query->iterate(null, Query::HYDRATE_ARRAY);
-			foreach($nodes as $node) {
-				$node = $node[0];
-				if (!$property || $this->matchTermInProperty($node, $search, $property)) {
-					if ($json) {
-						echo json_encode($node), "\n";
-						flush();
-						$node=null;
-					} else {
-						$this->displayNodes([$node]);
+
+			$query->setMaxResults(self::BATCH_SIZE); // max batch size
+			if ($limit !== null) $query->setMaxResults($limit);
+
+			$query->useResultCache(false);
+			$query->useQueryCache(false);
+
+			$offset = 0;
+			for (;;) {
+				$iterable = $query->iterate(NULL, Query::HYDRATE_ARRAY);
+				$i=0;
+				foreach ($iterable as $row) {
+					$i++;
+					$node = $row[0];
+					if (!$property || $this->matchTermInProperty($node, $search, $property)) {
+						if ($json) {
+							echo json_encode($node), "\n";
+						} else {
+							$this->displayNodes([$node]);
+						}
 					}
 				}
+				if ($i < self::BATCH_SIZE) break;
+				if ($limit) break;
+
+				$offset += self::BATCH_SIZE;
+				$query->setFirstResult($offset);
 			}
+			$this->reportMemoryUsage();
 		}
 	}
 
 	private function reportMemoryUsage() {
-		$this->outputLine(' > mem: %.1f MB', [memory_get_peak_usage()/1024/1024]);
+		file_put_contents('php://stderr', sprintf(' > mem: %.1f MB'."\n", memory_get_peak_usage()/1024/1024));
 	}
-
 
 	private function matchTermInProperty($node, $term, $propertyName) {
 		if (is_array($node)) {
