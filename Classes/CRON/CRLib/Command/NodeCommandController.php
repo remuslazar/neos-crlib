@@ -103,9 +103,10 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 	 * @param string $property Limit the matching to this property (if unset search in the full json blob)
 	 * @param bool $useSubtypes Include inherited node types
 	 * @param bool $count Display only the count and not the record data itself
+	 * @param bool $json Output data JSON formatted (one record per line)
 	 */
 	public function findCommand($path=null, $type=null, $search='', $property='',
-	                            $useSubtypes=true, $count=false) {
+	                            $useSubtypes=true, $count=false, $json=false) {
 		$path = $path ? $this->getPath($path) : null;
 		$type = $this->getTypes($type, $useSubtypes);
 
@@ -129,7 +130,11 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 			foreach($nodes as $node) {
 				$node = $node[0];
 				if (!$property || $this->matchTermInProperty($node, $search, $property)) {
-					$this->displayNodes([$node]);
+					if ($json) {
+						print json_encode($node) . "\n";
+					} else {
+						$this->displayNodes([$node]);
+					}
 				}
 			}
 		}

@@ -68,6 +68,8 @@ class NodeQueryService {
 			             ->setParameter('term', '%'.$searchTerm.'%');
 		}
 
+		$queryBuilder->orderBy('n.path', 'ASC');
+
 		return $queryBuilder;
 	}
 
