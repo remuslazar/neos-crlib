@@ -11,6 +11,26 @@ The main issue using the high level API is that it doesn't scale well, especiall
 result sets (e.g. more than 500.000 nodes), the main reason being the fact that temporary PHP Arrays are being
 used to collect and filter data.
 
+Setup
+-----
+
+Because this package is currently not available via Packagist, setup the github url in `composer.json`:
+
+```
+	"repositories": [
+		{
+			"type": "git",
+			"url": "git@github.com:cron-eu/neos-crlib.git"
+		}
+	]
+```
+
+Then:
+
+```
+composer require --update-no-dev cron/neos-crlib:dev-master
+```
+
 Command Controller
 ------------------
 
