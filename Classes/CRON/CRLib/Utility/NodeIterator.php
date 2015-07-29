@@ -32,6 +32,8 @@ class NodeIterator implements \Iterator {
 	 */
 	function __construct(Context $context, Query $query) {
 		$this->context = $context;
+		$query->useResultCache(false);
+		$query->useQueryCache(false);
 		$this->query = $query;
 	}
 
@@ -59,7 +61,10 @@ class NodeIterator implements \Iterator {
 	 */
 	public function current() {
 		$nodeData = $this->iterator->current();
-		return $this->getNode($nodeData[0]);
+		$node = $this->getNode($nodeData[0]);
+		// detach the entity from ORM to save memory
+		$this->query->getEntityManager()->detach($nodeData[0]);
+		return $node;
 	}
 
 	/**
