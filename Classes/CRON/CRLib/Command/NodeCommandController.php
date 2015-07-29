@@ -96,16 +96,16 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 	/**
 	 * Find TYPO3CR nodes
 	 *
-	 * @param string $path Start path, relative to the site root, defaults to /
+	 * @param string $path Start path, relative to the site root
 	 * @param string $type NodeType filter (csv list)
 	 * @param string $search Search term (regex when used with $property, else string)
 	 * @param string $property Limit the matching to this property (if unset search in the full json blob)
 	 * @param bool $useSubtypes Include inherited node types
 	 * @param bool $count Display only the count and not the record data itself
 	 */
-	public function findCommand($path = '/', $type=null, $search='', $property='',
+	public function findCommand($path=null, $type=null, $search='', $property='',
 	                            $useSubtypes=true, $count=false) {
-		$path = $this->getPath($path);
+		$path = $path ? $this->getPath($path) : null;
 		$type = $this->getTypes($type, $useSubtypes);
 
 		if ($count) {
