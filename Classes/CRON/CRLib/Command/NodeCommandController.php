@@ -7,6 +7,7 @@ namespace CRON\CRLib\Command;
  *                                                                        */
 
 use CRON\CRLib\Utility\NodeIterator;
+use Doctrine\ORM\Query;
 use TYPO3\Flow\Annotations as Flow;
 use TYPO3\Neos\Domain\Model\Site;
 use TYPO3\TYPO3CR\Domain\Model\NodeInterface;
@@ -112,8 +113,9 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 			if ($property) {
 				// unfortunately we can't use the getCount() method here
 				$count = 0;
-				$nodes = new NodeIterator($this->context, $this->nodeQueryService->findQuery($type, $path));
+				$nodes = $this->nodeQueryService->findQuery($type, $path)->iterate(null, Query::HYDRATE_ARRAY);
 				foreach($nodes as $node) {
+					$node = $node[0];
 					if ($this->matchTermInProperty($node, $search, $property)) { $count++; }
 				}
 			} else {
@@ -123,8 +125,9 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 			$this->outputLine('%d node(s).', [$count]);
 		} else {
 			$query = $this->nodeQueryService->findQuery($type, $path, $property ? null : $search);
-			$nodes = new NodeIterator($this->context, $query);
+			$nodes = $query->iterate(null, Query::HYDRATE_ARRAY);
 			foreach($nodes as $node) {
+				$node = $node[0];
 				if (!$property || $this->matchTermInProperty($node, $search, $property)) {
 					$this->displayNodes([$node]);
 				}
@@ -132,15 +135,20 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 		}
 	}
 
-	private function matchTermInProperty(NodeInterface $node, $term, $propertyName) {
-		return $node->hasProperty($propertyName) &&
-		preg_match('/'.$term.'/i', $node->getProperty($propertyName));
+	private function matchTermInProperty($node, $term, $propertyName) {
+		if (is_array($node)) {
+			return isset($node['properties'][$propertyName]) &&
+			preg_match('/'.$term.'/i', $node['properties'][$propertyName]);
+		} else {
+			return $node->hasProperty($propertyName) &&
+			preg_match('/'.$term.'/i', $node->getProperty($propertyName));
+		}
 	}
 
 	/**
 	 * Displays node data for an array of nodes (one line per node)
 	 *
-	 * @param NodeInterface[] $nodes
+	 * @param NodeInterface[]|array[] $nodes
 	 * @param string $indend
 	 * @param string $propertyName which property to display, defaults to title
 	 */
@@ -149,10 +157,11 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 		foreach($nodes as $node) {
 			$this->outputFormatted('%s%s [%s] "%s" (%s)',[
 				$indend,
-				$node->getPath(),
-				(string)$node->getNodeType(),
-				$node->getProperty($propertyName),
-				$node->getIdentifier()
+				is_array($node) ? $node['path'] : $node->getPath(),
+				is_array($node) ? $node['nodeType'] : (string)$node->getNodeType(),
+				is_array($node) ? (isset($node['properties'][$propertyName]) ?
+					$node['properties'][$propertyName] : '' ) : $node->getProperty($propertyName),
+				is_array($node) ? $node['identifier']  : $node->getIdentifier()
 			]);
 		}
 	}
