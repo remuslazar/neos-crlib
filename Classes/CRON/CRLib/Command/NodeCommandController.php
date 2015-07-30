@@ -58,6 +58,12 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 	protected $nodeQueryService;
 
 	/**
+	 * @Flow\Inject
+	 * @var \CRON\CRLib\Service\NodeImportExportService
+	 */
+	protected $nodeImportExportService;
+
+	/**
 	 * @throws \Exception
 	 */
 	public function initializeObject() {
@@ -92,6 +98,40 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 			return array_keys($tmp);
 		}
 		return $typeFilter;
+	}
+
+	/**
+	 * Export all nodes to JSON. Linked resources are saved in a relative directory "res".
+	 *
+	 * @param string $filename
+	 * @param string $path limit to this path only
+	 * @param string $type NodeType filter (csv list)
+	 */
+	public function exportCommand($filename=null, $path=null, $type=null) {
+		$path = $path ? $this->getPath($path) : null;
+		$types = $this->getTypes($type);
+
+		$count = $this->nodeQueryService->getCount($types, $path);
+		if (!$count) {
+			$this->outputLine('Error: result set is empty.');
+			$this->quit(1);
+		}
+
+		$fp = null; if ($filename) { $fp = fopen($filename, 'w'); }
+
+		$progress = $fp && ($count > 1000); if ($progress) { $this->output->progressStart($count); $step = $count / 100; }
+
+		$query = $this->nodeQueryService->findQuery($types, $path);
+		$iterable = $query->iterate(NULL, Query::HYDRATE_SCALAR);
+		$i = 0; foreach ($iterable as $row) {
+			$data = $this->nodeImportExportService->processNodeData($row[0]);
+			$json = json_encode($data) . "\n";
+			if ($fp) fwrite($fp, $json); else echo $json;
+			$i++; if ($progress && $i % $step === 0) $this->output->progressAdvance($step);
+		}
+		if ($fp) fclose($fp);
+
+		if ($progress) { $this->output->progressSet($count); $this->output->progressFinish(); }
 	}
 
 	/**
