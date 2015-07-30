@@ -196,10 +196,18 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 	/**
 	 * Dump all data of the node specified by the uuid
 	 *
-	 * @param string $uuid uuid of the node, e.g. 4b3d2a07-6d1f-5311-3431-cc80d41c3622
+	 * @param string $uuid uuid of the node, e.g. 4b3d2a07-6d1f-5311-3431-cc80d41c3622 OR the node path
 	 * @param bool $json Output data JSON formatted (one record per line)
 	 */
 	public function dumpCommand($uuid, $json=false) {
+
+		if (strpos($uuid, '/') !== false) {
+			// it looks like a path
+			$uuid = $this->getPath($uuid);
+			if ($node = $this->context->getNode($uuid)) {
+				$uuid = $node->getIdentifier();
+			}
+		}
 
 		if ($json) {
 			$query = $this->nodeQueryService->getByIdentifierQuery($uuid, $this->context->getWorkspaceName());
@@ -306,6 +314,8 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 	 * @return string $path absolute path
 	 */
 	private function getPath($path) {
+		if (strpos($path, '/sites') === 0) return $path;
+
 		// strip the leading / from $path, if present
 		$path = preg_replace('/^\//','', $path);
 		$path = $path ? join('/', [$this->sitePath, $path]) : $this->sitePath;
