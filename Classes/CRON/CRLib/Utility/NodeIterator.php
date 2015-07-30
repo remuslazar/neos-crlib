@@ -20,6 +20,8 @@ use TYPO3\TYPO3CR\Domain\Service\Context;
  */
 class NodeIterator implements \Iterator {
 
+	const BATCH_SIZE = 30;
+
 	/**
 	 * @Flow\Inject
 	 * @var \TYPO3\TYPO3CR\Domain\Factory\NodeFactory
@@ -27,18 +29,57 @@ class NodeIterator implements \Iterator {
 	protected $nodeFactory;
 
 	/**
-	 * @param Context $context
-	 * @param Query $query
+	 * @Flow\Inject
+	 * @var \TYPO3\TYPO3CR\Domain\Service\ContextFactoryInterface
 	 */
-	function __construct(Context $context, Query $query) {
-		$this->context = $context;
+	protected $contextFactory;
+
+	/**
+	 * Inject PersistenceManagerInterface
+	 *
+	 * @Flow\Inject
+	 * @var \TYPO3\Flow\Persistence\PersistenceManagerInterface
+	 */
+	protected $persistenceManager;
+
+	/**
+	 * @Flow\Inject
+	 * @var \TYPO3\TYPO3CR\Domain\Repository\NodeDataRepository
+	 */
+	protected $nodeDataRepository;
+
+	/**
+	 * @param Query $query The Query object
+	 * @param array $contextOptions Options for the contextFactory::create() method
+	 */
+	function __construct(Query $query, $contextOptions=null) {
+		$this->contextOptions = $contextOptions ? $contextOptions : [
+			// use some viable defaults
+			'invisibleContentShown' => TRUE,
+			'inaccessibleContentShown' => TRUE
+		];
 		$query->useResultCache(false);
 		$query->useQueryCache(false);
 		$this->query = $query;
 	}
 
 	public function initializeObject() {
+		$this->context = $this->contextFactory->create($this->contextOptions);
 		$this->iterator = $this->query->iterate();
+	}
+
+	public function clearState() {
+		$this->persistenceManager->persistAll();
+		$this->nodeDataRepository->flushNodeRegistry();
+		$this->context = NULL;
+		/** @var Context $context */
+		foreach ($this->contextFactory->getInstances() as $context) {
+			$context->getFirstLevelNodeCache()->flush();
+		}
+		$this->contextFactory->reset();
+		$this->nodeFactory->reset();
+		$this->persistenceManager->clearState();
+		$this->context = $this->contextFactory->create($this->contextOptions);
 	}
 
 	/**
@@ -48,7 +89,6 @@ class NodeIterator implements \Iterator {
 	 */
 	private function getNode(NodeData $nodeData) {
 		$node = $this->nodeFactory->createFromNodeData($nodeData, $this->context);
-		$this->nodeFactory->reset();
 		return $node;
 	}
 
@@ -60,10 +100,15 @@ class NodeIterator implements \Iterator {
 	 * @return NodeInterface
 	 */
 	public function current() {
+
+		if ($this->iterator->key() % self::BATCH_SIZE === 0) {
+			$this->clearState();
+		}
+
 		$nodeData = $this->iterator->current();
 		$node = $this->getNode($nodeData[0]);
 		// detach the entity from ORM to save memory
-		$this->query->getEntityManager()->detach($nodeData[0]);
+		//$this->query->getEntityManager()->detach($nodeData[0]);
 		return $node;
 	}
 

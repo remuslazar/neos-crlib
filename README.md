@@ -42,19 +42,100 @@ Call `flow help|grep node` to get a list of currently implemented commands.
 NodeQueryService and NodeIterator Classes
 -----------------------------------------
 
+### NodeQueryService
+
+This is a Singleton, can be injected with:
+
+```
+	/**
+	 * @Flow\Inject
+	 * @var \CRON\CRLib\Service\NodeQueryService
+	 */
+	protected $nodeQueryService;
+```
+
+There is a findQuery() method ond some others, refer to the inline PHPDoc for parameters etc.
+
 ### NodeIterator Class
 
 The Utility Class `NodeIterator` can be used to loop over a node subset using the PHP Iterator Interface, e.g.
 to loop over all nodes:
 
 ```
-foreach(new NodeIterator($context, $this->nodeQueryService->findQuery()) as $node) {
+foreach(new NodeIterator($this->nodeQueryService->findQuery()) as $node) {
     // do something with $node
 }
 ```
 
 The memory usage is quite constant, the Node's being created on the fly on each iteration and not cached
-in any way.
+in any way. The NodeIterator do also perform periodically (after a hardcoded batch size) a `clearState()` call,
+to free up memory and speedup things. 
+
+### Benchmark
+
+This Benchmark iterates over 138719 nodes, calculates an md5 sum from the node's title
+property and reports the memory usage and some performance data:
+
+```
+	public function getAllNodesCommand() {
+		$query = $this->nodeQueryService->findQuery();
+		$iterator = new NodeIterator($query);
+		$time = microtime(true);
+		$count = 0;
+		$md5 = '';
+		$batchSize = 10000;
+		foreach ($iterator as $node) {
+			// do some pseudo calculations to unwrap the objects (and don't let the PHP optimizer to
+			// mess up our benchmark
+			$md5 = md5($md5 . $node->getProperty('title'));
+
+			if ($iterator->key() % $batchSize === 0) {
+				$this->reportMemoryUsage();
+				$oldTime = $time; $time = microtime(true);
+				$seconds = $time - $oldTime;
+				if ($count) $this->outputLine('%.1f records/s', [(float)$batchSize/$seconds]);
+			}
+			$count++;
+		}
+		$this->outputLine('%d records processed, md5: %s', [$count, $md5]);
+	}
+```
+
+#### The Results
+
+using my iMac (middle 2010):
+
+```
+[www@8e2f4947eaf1 : ~/typo3-app]$ ./flow nodecruncher:getallnodes
+ > mem: 243.9 MB
+ > mem: 258.1 MB
+2126.3 records/s
+ > mem: 258.2 MB
+2120.2 records/s
+ > mem: 258.4 MB
+2093.2 records/s
+ > mem: 258.5 MB
+2091.6 records/s
+ > mem: 258.7 MB
+1999.4 records/s
+ > mem: 258.8 MB
+2034.0 records/s
+ > mem: 259.0 MB
+2059.0 records/s
+ > mem: 259.1 MB
+1950.7 records/s
+ > mem: 259.3 MB
+1900.1 records/s
+ > mem: 259.4 MB
+1966.9 records/s
+ > mem: 259.6 MB
+1947.0 records/s
+ > mem: 259.7 MB
+1999.1 records/s
+ > mem: 259.9 MB
+1940.5 records/s
+138719 records processed, md5: 289d8c4613dd39c61a04839cc536907d
+```
 
 ### NodeQueryService Class
 
