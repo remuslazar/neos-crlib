@@ -173,6 +173,7 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 	 */
 	public function pruneCommand() {
 		$em = $this->nodeQueryService->getEntityManager();
+		$em->getConnection()->setAutoCommit(true);
 		$em->getConnection()->executeQuery('delete from typo3_typo3cr_domain_model_nodedata where parentpath != ""');
 	}
 
