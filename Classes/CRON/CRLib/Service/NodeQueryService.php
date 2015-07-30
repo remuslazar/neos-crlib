@@ -8,6 +8,7 @@
 
 namespace CRON\CRLib\Service;
 
+use Doctrine\ORM\EntityManager;
 use Doctrine\ORM\Query;
 use Doctrine\ORM\QueryBuilder;
 use TYPO3\Flow\Annotations as Flow;
@@ -42,6 +43,13 @@ class NodeQueryService {
 	public function findQuery($nodeTypeFilter=null, $path=null, $searchTerm='', $workspace='live') {
 		$queryBuilder = $this->getQueryBuilder($nodeTypeFilter, $path, $searchTerm, $workspace);
 		return $queryBuilder->getQuery();
+	}
+
+	/**
+	 * @return EntityManager
+	 */
+	public function getEntityManager() {
+		return $this->entityManager;
 	}
 
 	/**

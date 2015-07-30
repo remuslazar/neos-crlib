@@ -7,6 +7,7 @@
  */
 
 namespace CRON\CRLib\Service;
+use TYPO3\Flow\Persistence\Doctrine\DataTypes\JsonArrayType;
 use TYPO3\Flow\Annotations as Flow;
 use TYPO3\TYPO3CR\Domain\Service\ImportExport\ImportExportPropertyMappingConfiguration;
 
@@ -58,6 +59,53 @@ class NodeImportExportService {
 	public function initializeObject() {
 		$this->propertyMappingConfiguration = new ImportExportPropertyMappingConfiguration(self::RESOURCES_DIR);
 		if (!is_dir(self::RESOURCES_DIR)) mkdir(self::RESOURCES_DIR);
+	}
+
+	public function processJSONRecord($json) {
+		$connection = $this->entityManager->getConnection();
+
+		$jsonPropertiesDataTypeHandler = JsonArrayType::getType(JsonArrayType::FLOW_JSON_ARRAY);
+		$data = $this->convertJSONRecord($json);
+
+		$data['properties'] = $jsonPropertiesDataTypeHandler->convertToDatabaseValue($data['properties'],
+			$connection->getDatabasePlatform());
+
+		\TYPO3\Flow\var_dump($data);
+
+	}
+
+	/**
+	 * @param array $data
+	 * @return array
+	 * @throws \Exception
+	 * @throws \TYPO3\Flow\Property\Exception
+	 * @throws \TYPO3\Flow\Security\Exception
+	 *
+	 * @return array processed data
+	 */
+	private function convertJSONRecord(array $data) {
+		$nodeData = [];
+		foreach ($data as $key => $value) {
+			if (is_array($value)) {
+				if (isset($value['date'])) {
+					$nodeData[$key] = new \DateTime($value['date'], new \DateTimeZone($value['timezone']));
+				} elseif (isset($value['__flow_object_type'])) {
+					$nodeData[$key] = $this->propertyMapper->convert(
+						$value['__value'],
+						$value['__flow_object_type'],
+						$this->propertyMappingConfiguration
+					);
+				} else {
+					// recurse
+					$nodeData[$key] = $this->convertJSONRecord($value);
+				}
+			} else {
+				// primitive type like string/null/boolean
+				$nodeData[$key] = $value;
+			}
+		}
+
+		return $nodeData;
 	}
 
 	/**

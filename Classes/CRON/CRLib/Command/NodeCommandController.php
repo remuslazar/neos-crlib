@@ -8,6 +8,7 @@ namespace CRON\CRLib\Command;
 
 use CRON\CRLib\Utility\JSONFileReader;
 use Doctrine\ORM\Query;
+use Doctrine\ORM\QueryBuilder;
 use TYPO3\Flow\Annotations as Flow;
 use TYPO3\Neos\Domain\Model\Site;
 use TYPO3\TYPO3CR\Domain\Model\NodeInterface;
@@ -140,24 +141,39 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 	 * @param string $filename JSON file on local filesystem
 	 * @param string $path limit the processing on that path only
 	 * @param boolean $dryRun perform a dry run
-	 * @param boolean $list list all node-paths
 	 */
-	public function importCommand($filename, $path=null, $dryRun=false, $list=false) {
+	public function importCommand($filename, $path=null, $dryRun=false) {
 		$iterator = new JSONFileReader($filename);
+
+		// dry run to get the count of the records to import later on
+		$count = 0;
+		foreach ($iterator as $data) {
+			$nodePath = $data['path'];
+			if ($path && strpos($nodePath, $path) !== 0) continue;
+			$count++;
+		}
+		$this->outputLine('Input file validated, %d record(s) selected for import.', [$count]);
+
+		$progress = $count > 1000; if ($progress) { $this->output->progressStart($count); $step = $count / 100; }
+
 		$i=0;
 		foreach ($iterator as $data) {
-			$nodePath = $data['n_path'];
+			$nodePath = $data['path'];
 			if ($path && strpos($nodePath, $path) !== 0) continue;
-
-			if ($list) { $this->outputLine('%s', [$nodePath]); }
-
 			if (!$dryRun) {
-				// TODO: do something with $data
+				$this->nodeImportExportService->processJSONRecord($data);
 			}
-
-			$i++;
+			$i++; if ($progress && $i % $step === 0) $this->output->progressAdvance($step);
 		}
-		if (!$list) $this->outputLine('%d nodes', [$i]);
+		if ($progress) { $this->output->progressSet($count); $this->output->progressFinish(); }
+	}
+
+	/**
+	 * Prune all nodes in all workspaces
+	 */
+	public function pruneCommand() {
+		$em = $this->nodeQueryService->getEntityManager();
+		$em->getConnection()->executeQuery('delete from typo3_typo3cr_domain_model_nodedata where parentpath != ""');
 	}
 
 	/**
