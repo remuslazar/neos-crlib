@@ -7,8 +7,10 @@
  */
 
 namespace CRON\CRLib\Service;
+use Doctrine\DBAL\Types\DateType;
 use TYPO3\Flow\Persistence\Doctrine\DataTypes\JsonArrayType;
 use TYPO3\Flow\Annotations as Flow;
+use TYPO3\Flow\Property\TypeConverter\DateTimeConverter;
 use TYPO3\TYPO3CR\Domain\Service\ImportExport\ImportExportPropertyMappingConfiguration;
 
 /**
@@ -65,10 +67,18 @@ class NodeImportExportService {
 		$connection = $this->entityManager->getConnection();
 
 		$jsonPropertiesDataTypeHandler = JsonArrayType::getType(JsonArrayType::FLOW_JSON_ARRAY);
+		$dateDataTypeHandler = DateType::getType(DateType::DATETIME);
 		$data = $this->convertJSONRecord($json);
 
-		$data['properties'] = $jsonPropertiesDataTypeHandler->convertToDatabaseValue($data['properties'],
-			$connection->getDatabasePlatform());
+		foreach ($data as $key => $value) {
+			if (is_array($value)) {
+				$data[$key] = $jsonPropertiesDataTypeHandler->convertToDatabaseValue($data[$key],
+					$connection->getDatabasePlatform());
+			} elseif ($value instanceof \DateTime) {
+				$data[$key] = $dateDataTypeHandler->convertToDatabaseValue($data[$key],
+					$connection->getDatabasePlatform());
+			}
+		}
 
 		\TYPO3\Flow\var_dump($data);
 
