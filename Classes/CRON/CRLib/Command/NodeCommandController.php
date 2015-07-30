@@ -6,7 +6,6 @@ namespace CRON\CRLib\Command;
  *                                                                        *
  *                                                                        */
 
-use CRON\CRLib\Utility\NodeIterator;
 use Doctrine\ORM\Query;
 use TYPO3\Flow\Annotations as Flow;
 use TYPO3\Neos\Domain\Model\Site;
@@ -20,8 +19,6 @@ use TYPO3\TYPO3CR\Domain\Service\NodeTypeManager;
  * @Flow\Scope("singleton")
  */
 class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
-
-	const BATCH_SIZE = 20000;
 
 	/**
 	 * @Flow\Inject
@@ -117,7 +114,8 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 			if ($property) {
 				// unfortunately we can't use the getCount() method here
 				$count = 0;
-				$iterable = $this->nodeQueryService->findQuery($type, $path)->iterate(null, Query::HYDRATE_ARRAY);
+				$iterable = $this->nodeQueryService->findQuery($type, $path)
+				                                   ->iterate(null,Query::HYDRATE_SCALAR);
 				foreach($iterable as $node) {
 					$node = $node[0];
 					if ($this->matchTermInProperty($node, $search, $property)) { $count++; }
@@ -130,32 +128,18 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 		} else {
 			$query = $this->nodeQueryService->findQuery($type, $path, $property ? null : $search);
 
-			$query->setMaxResults(self::BATCH_SIZE); // max batch size
 			if ($limit !== null) $query->setMaxResults($limit);
 
-			$query->useResultCache(false);
-			$query->useQueryCache(false);
-
-			$offset = 0;
-			for (;;) {
-				$iterable = $query->iterate(NULL, Query::HYDRATE_ARRAY);
-				$i=0;
-				foreach ($iterable as $row) {
-					$i++;
-					$node = $row[0];
-					if (!$property || $this->matchTermInProperty($node, $search, $property)) {
-						if ($json) {
-							echo json_encode($node), "\n";
-						} else {
-							$this->displayNodes([$node]);
-						}
+			$iterable = $query->iterate(NULL, Query::HYDRATE_SCALAR);
+			foreach ($iterable as $row) {
+				$node = $row[0];
+				if (!$property || $this->matchTermInProperty($node, $search, $property)) {
+					if ($json) {
+						echo json_encode($node), "\n";
+					} else {
+						$this->displayNodes([$node]);
 					}
 				}
-				if ($i < self::BATCH_SIZE) break;
-				if ($limit) break;
-
-				$offset += self::BATCH_SIZE;
-				$query->setFirstResult($offset);
 			}
 		}
 	}
@@ -166,8 +150,8 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 
 	private function matchTermInProperty($node, $term, $propertyName) {
 		if (is_array($node)) {
-			return isset($node['properties'][$propertyName]) &&
-			$this->searchTermMatch($term, $node['properties'][$propertyName]);
+			return isset($node['n_properties'][$propertyName]) &&
+			$this->searchTermMatch($term, $node['n_properties'][$propertyName]);
 		} else {
 			return $node->hasProperty($propertyName) &&
 			$this->searchTermMatch($term, $node->getProperty($propertyName));
@@ -200,11 +184,11 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 		foreach($nodes as $node) {
 			$this->outputFormatted('%s%s [%s] "%s" (%s)',[
 				$indend,
-				is_array($node) ? $node['path'] : $node->getPath(),
-				is_array($node) ? $node['nodeType'] : (string)$node->getNodeType(),
-				is_array($node) ? (isset($node['properties'][$propertyName]) ?
-					$node['properties'][$propertyName] : '' ) : $node->getProperty($propertyName),
-				is_array($node) ? $node['identifier']  : $node->getIdentifier()
+				is_array($node) ? $node['n_path'] : $node->getPath(),
+				is_array($node) ? $node['n_nodeType'] : (string)$node->getNodeType(),
+				is_array($node) ? (isset($node['n_properties'][$propertyName]) ?
+					$node['n_properties'][$propertyName] : '' ) : $node->getProperty($propertyName),
+				is_array($node) ? $node['n_identifier']  : $node->getIdentifier()
 			]);
 		}
 	}
