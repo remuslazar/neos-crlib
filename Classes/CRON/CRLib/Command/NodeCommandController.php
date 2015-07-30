@@ -6,6 +6,7 @@ namespace CRON\CRLib\Command;
  *                                                                        *
  *                                                                        */
 
+use CRON\CRLib\Utility\JSONFileReader;
 use Doctrine\ORM\Query;
 use TYPO3\Flow\Annotations as Flow;
 use TYPO3\Neos\Domain\Model\Site;
@@ -91,6 +92,32 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 			return array_keys($tmp);
 		}
 		return $typeFilter;
+	}
+
+	/**
+	 * Import node data from a JSON file
+	 *
+	 * @param string $filename JSON file on local filesystem
+	 * @param string $path limit the processing on that path only
+	 * @param boolean $dryRun perform a dry run
+	 * @param boolean $list list all node-paths
+	 */
+	public function importCommand($filename, $path=null, $dryRun=false, $list=false) {
+		$iterator = new JSONFileReader($filename);
+		$i=0;
+		foreach ($iterator as $data) {
+			$nodePath = $data['n_path'];
+			if ($path && strpos($nodePath, $path) !== 0) continue;
+
+			if ($list) { $this->outputLine('%s', [$nodePath]); }
+
+			if (!$dryRun) {
+				// TODO: do something with $data
+			}
+
+			$i++;
+		}
+		if (!$list) $this->outputLine('%d nodes', [$i]);
 	}
 
 	/**
