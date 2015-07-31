@@ -10,7 +10,6 @@ namespace CRON\CRLib\Service;
 use Doctrine\DBAL\Types\DateType;
 use TYPO3\Flow\Persistence\Doctrine\DataTypes\JsonArrayType;
 use TYPO3\Flow\Annotations as Flow;
-use TYPO3\Flow\Property\TypeConverter\DateTimeConverter;
 use TYPO3\TYPO3CR\Domain\Service\ImportExport\ImportExportPropertyMappingConfiguration;
 
 /**
@@ -156,6 +155,13 @@ class NodeImportExportService {
 					}
 				}
 				$data[$newKey] = $properties;
+				break;
+
+			// ignore fields:
+			case 'n_Persistence_Object_Identifier':
+			case 'n_pathHash':
+			case 'n_parentPathHash':
+			case 'n_dimensionsHash':
 				break;
 
 			default:
