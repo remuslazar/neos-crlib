@@ -8,7 +8,9 @@ namespace CRON\CRLib\Command;
 
 use Doctrine\ORM\Query;
 use TYPO3\Flow\Annotations as Flow;
+use TYPO3\Flow\Object\ObjectManagerInterface;
 use TYPO3\Neos\Domain\Model\Site;
+use TYPO3\TYPO3CR\Command\NodeCommandControllerPlugin;
 use TYPO3\TYPO3CR\Domain\Model\NodeInterface;
 use TYPO3\TYPO3CR\Domain\Service\Context;
 use TYPO3\TYPO3CR\Domain\Service\NodeTypeManager;
@@ -55,6 +57,12 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 	 * @var \CRON\CRLib\Service\NodeQueryService
 	 */
 	protected $nodeQueryService;
+
+	/**
+	 * @Flow\Inject
+	 * @var ObjectManagerInterface
+	 */
+	protected $objectManager;
 
 	/**
 	 * @throws \Exception
@@ -349,5 +357,18 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 
 		$this->outputLine('%s created using the node Identifier %s', [$newNode, $newNode->getIdentifier()]);
 	}
+
+	/**
+	 * Perform a node repair operation selectively, only for the specified NodeType
+	 *
+	 * @param string $type NodeType Filter
+	 */
+	public function repairCommand($type) {
+		/** @var NodeCommandControllerPlugin $plugin */
+		$plugin = $this->objectManager->get('TYPO3\TYPO3CR\Command\NodeCommandControllerPlugin');
+		$plugin->invokeSubCommand('repair', $this->output, $this->nodeTypeManager->getNodeType($type),
+			'live', false, false); // no dry run, no cleanups
+	}
+
 
 }
