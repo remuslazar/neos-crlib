@@ -71,13 +71,19 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 		/** @var Site $currentSite */
 		/** @noinspection PhpUndefinedMethodInspection */
 		$currentSite = $this->siteRepository->findFirstOnline();
-		if (!$currentSite) throw new \Exception('No site found');
-		$this->sitePath = '/sites/' . $currentSite->getNodeName();
-		$this->context = $this->contextFactory->create([
-			'currentSite' => $currentSite,
-			'invisibleContentShown' => TRUE,
-			'inaccessibleContentShown' => TRUE
-		]);
+		if ($currentSite) {
+			$this->sitePath = '/sites/' . $currentSite->getNodeName();
+			$this->context = $this->contextFactory->create([
+				'currentSite' => $currentSite,
+				'invisibleContentShown' => TRUE,
+				'inaccessibleContentShown' => TRUE
+			]);
+		} else {
+			$this->context = $this->contextFactory->create([
+				'invisibleContentShown' => TRUE,
+				'inaccessibleContentShown' => TRUE
+			]);
+		}
 	}
 
 	/**
@@ -156,12 +162,16 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 
 		$progress = $count > 1000; if ($progress) { $this->output->progressStart($count); $step = $count / 100; }
 
+		if (!$dryRun) $this->nodeImportExportService->createSitesNode();
+
 		$i=0;
 		foreach ($iterator as $data) {
 			$nodePath = $data['path'];
 			if ($path && strpos($nodePath, $path) !== 0) continue;
 			if (!$dryRun) {
-				$this->nodeImportExportService->processJSONRecord($data);
+				if ($nodePath != '/' && $nodePath != '/sites') {
+					$this->nodeImportExportService->processJSONRecord($data);
+				}
 			}
 			$i++; if ($progress && $i % $step === 0) $this->output->progressAdvance($step);
 		}

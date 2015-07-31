@@ -7,10 +7,15 @@
  */
 
 namespace CRON\CRLib\Service;
+use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\Driver\PDOConnection;
+use Doctrine\DBAL\Types\Type;
 use Doctrine\DBAL\Types\DateType;
 use TYPO3\Flow\Persistence\Doctrine\DataTypes\JsonArrayType;
 use TYPO3\Flow\Annotations as Flow;
+use TYPO3\TYPO3CR\Domain\Model\NodeData;
 use TYPO3\TYPO3CR\Domain\Service\ImportExport\ImportExportPropertyMappingConfiguration;
+use TYPO3\Flow\Utility\Algorithms;
 
 /**
  *
@@ -57,9 +62,46 @@ class NodeImportExportService {
 	 */
 	protected $nodeDataRepository;
 
+	/**
+	 * @Flow\Inject
+	 * @var \TYPO3\TYPO3CR\Domain\Service\ContextFactoryInterface
+	 */
+	protected $contextFactory;
+
 	public function initializeObject() {
 		$this->propertyMappingConfiguration = new ImportExportPropertyMappingConfiguration(self::RESOURCES_DIR);
 		if (!is_dir(self::RESOURCES_DIR)) mkdir(self::RESOURCES_DIR);
+	}
+
+	public function createSitesNode() {
+		$rootNode = $this->contextFactory->create()->getRootNode();
+		// We fetch the workspace to be sure it's known to the persistence manager and persist all
+		// so the workspace and site node are persisted before we import any nodes to it.
+		$rootNode->getContext()->getWorkspace();
+		$sitesNode = $rootNode->getNode('/sites');
+		if ($sitesNode === NULL) {
+			$rootNode->createSingleNode('sites');
+		}
+		$this->persistenceManager->persistAll();
+	}
+
+	/**
+	 * @param Connection $connection
+	 * @param array $data
+	 * @param array $type
+	 */
+	private function executeUpdate($connection, $data, $type) {
+
+		// TODO: use the mapping configuration from the ORM layer
+		$data['sortingindex'] = $data['index']; unset($data['index']);
+
+		$fields = array_keys($data);
+		$values = array_map(function($field) { return ':' . $field;  }, $fields);
+
+		$statement = 'INSERT INTO typo3_typo3cr_domain_model_nodedata (' . implode(',', $fields) . ') ' .
+			'VALUES (' . implode(',', $values) . ')';
+
+		$connection->executeUpdate($statement, $data, $type);
 	}
 
 	public function processJSONRecord($json) {
@@ -68,19 +110,29 @@ class NodeImportExportService {
 		$jsonPropertiesDataTypeHandler = JsonArrayType::getType(JsonArrayType::FLOW_JSON_ARRAY);
 		$dateDataTypeHandler = DateType::getType(DateType::DATETIME);
 		$data = $this->convertJSONRecord($json);
+		$type = [];
 
+		$data['dimensionsHash'] = NodeData::sortDimensionValueArrayAndReturnDimensionsHash($data['dimensionValues']);
 		foreach ($data as $key => $value) {
+			// generate the path hash values
+			if (in_array($key, ['path','parentPath'])) {
+				$data[$key.'Hash'] = md5($value);
+			}
 			if (is_array($value)) {
 				$data[$key] = $jsonPropertiesDataTypeHandler->convertToDatabaseValue($data[$key],
 					$connection->getDatabasePlatform());
 			} elseif ($value instanceof \DateTime) {
-				$data[$key] = $dateDataTypeHandler->convertToDatabaseValue($data[$key],
-					$connection->getDatabasePlatform());
+//				$data[$key] = $dateDataTypeHandler->convertToDatabaseValue($data[$key],
+//					$connection->getDatabasePlatform());
+				$type[$key] = Type::DATETIME;
+			} elseif (is_bool($value)) {
+				$type[$key] = \PDO::PARAM_BOOL;
 			}
 		}
+		$data['Persistence_Object_Identifier'] = Algorithms::generateUUID();
+		$data['workspace'] = 'live'; // importing data in other workspaces than the live workspace not supported
 
-		\TYPO3\Flow\var_dump($data);
-
+		$this->executeUpdate($connection, $data, $type);
 	}
 
 	/**
