@@ -125,7 +125,7 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 		$query = $this->nodeQueryService->findQuery($types, $path);
 		$iterable = $query->iterate(NULL, Query::HYDRATE_SCALAR);
 		$i = 0; foreach ($iterable as $row) {
-			$data = $this->nodeImportExportService->processNodeData($row[0]);
+			$data = $this->nodeImportExportService->convertNodeDataForExport($row[0]);
 			$json = json_encode($data) . "\n";
 			if ($fp) fwrite($fp, $json); else echo $json;
 			$i++; if ($progress && $i % $step === 0) $this->output->progressAdvance($step);

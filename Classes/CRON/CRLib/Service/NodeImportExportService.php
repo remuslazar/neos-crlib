@@ -118,6 +118,10 @@ class NodeImportExportService {
 	}
 
 	/**
+	 * Convert the node data array from Doctrine HYDRATE_SCALAR to an array representation suited for exporting
+	 * to JSON. Process properties using propertyMapper->convert() and save assets to a relative directory on
+	 * the local filesystem.
+	 *
 	 * @param array $nodeData input data
 	 * @throws \Exception
 	 * @throws \TYPO3\Flow\Property\Exception
@@ -125,7 +129,7 @@ class NodeImportExportService {
 	 *
 	 * @return array processed node data
 	 */
-	public function processNodeData(array $nodeData) {
+	public function convertNodeDataForExport(array $nodeData) {
 		$data = [];
 		foreach ($nodeData as $key => $value) {
 			$newKey = substr($key, 2); // strip the n_ prefix
