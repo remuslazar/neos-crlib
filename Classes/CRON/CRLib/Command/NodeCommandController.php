@@ -139,16 +139,19 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 			if ($limit !== null) $query->setMaxResults($limit);
 
 			$iterable = $query->iterate(NULL, Query::HYDRATE_SCALAR);
+			if ($json) echo '['; $commaIsNeeded = false;
 			foreach ($iterable as $row) {
 				$node = $row[0];
 				if (!$property || $this->matchTermInProperty($node, $search, $property)) {
 					if ($json) {
-						echo json_encode($node), "\n";
+						if ($commaIsNeeded) echo ",\n"; else $commaIsNeeded = true;
+						echo json_encode($node);
 					} else {
 						$this->displayNodes([$node]);
 					}
 				}
 			}
+			if ($json) echo ']';
 		}
 	}
 
