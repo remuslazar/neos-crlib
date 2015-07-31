@@ -8,7 +8,6 @@
 
 namespace CRON\CRLib\Service;
 use Doctrine\DBAL\Connection;
-use Doctrine\DBAL\Driver\PDOConnection;
 use Doctrine\DBAL\Types\Type;
 use Doctrine\DBAL\Types\DateType;
 use TYPO3\Flow\Persistence\Doctrine\DataTypes\JsonArrayType;
@@ -108,7 +107,6 @@ class NodeImportExportService {
 		$connection = $this->entityManager->getConnection();
 
 		$jsonPropertiesDataTypeHandler = JsonArrayType::getType(JsonArrayType::FLOW_JSON_ARRAY);
-		$dateDataTypeHandler = DateType::getType(DateType::DATETIME);
 		$data = $this->convertJSONRecord($json);
 		$type = [];
 
@@ -122,8 +120,6 @@ class NodeImportExportService {
 				$data[$key] = $jsonPropertiesDataTypeHandler->convertToDatabaseValue($data[$key],
 					$connection->getDatabasePlatform());
 			} elseif ($value instanceof \DateTime) {
-//				$data[$key] = $dateDataTypeHandler->convertToDatabaseValue($data[$key],
-//					$connection->getDatabasePlatform());
 				$type[$key] = Type::DATETIME;
 			} elseif (is_bool($value)) {
 				$type[$key] = \PDO::PARAM_BOOL;
