@@ -158,24 +158,30 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 			if ($path && strpos($nodePath, $path) !== 0) continue;
 			$count++;
 		}
-		$this->outputLine('Input file validated, %d record(s) selected for import.', [$count]);
 
 		$progress = $count > 1000; if ($progress) { $this->output->progressStart($count); $step = $count / 100; }
 
 		if (!$dryRun) $this->nodeImportExportService->createSitesNode();
 
 		$i=0;
+		$importedCount=0;
 		foreach ($iterator as $data) {
 			$nodePath = $data['path'];
 			if ($path && strpos($nodePath, $path) !== 0) continue;
 			if (!$dryRun) {
-				if ($nodePath != '/' && $nodePath != '/sites') {
+				$parentPath = $data['parentPath'];
+				if ($parentPath && $parentPath != '/' && $parentPath != '/sites') {
+					$importedCount++;
 					$this->nodeImportExportService->processJSONRecord($data);
 				}
 			}
 			$i++; if ($progress && $i % $step === 0) $this->output->progressAdvance($step);
 		}
-		if ($progress) { $this->output->progressSet($count); $this->output->progressFinish(); }
+		if ($progress) {
+			$this->output->progressSet($count); $this->output->progressFinish();
+		} elseif ($importedCount) {
+			$this->outputLine('Import process done, %d node(s) imported.', [$importedCount]);
+		}
 	}
 
 	/**
@@ -184,7 +190,7 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 	public function pruneCommand() {
 		$em = $this->nodeQueryService->getEntityManager();
 		$em->getConnection()->setAutoCommit(true);
-		$em->getConnection()->executeQuery('delete from typo3_typo3cr_domain_model_nodedata where parentpath != ""');
+		$em->getConnection()->executeQuery('delete from typo3_typo3cr_domain_model_nodedata where parentpath not in ("","/sites")');
 	}
 
 	/**
