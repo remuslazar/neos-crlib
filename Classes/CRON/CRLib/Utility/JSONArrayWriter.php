@@ -21,7 +21,7 @@ class JSONArrayWriter {
 	function __construct($pretty=false) {
 		echo '[';
 		$this->commaIsNeeded = false;
-		$this->jsonEncodeOptions = $pretty ? JSON_PRETTY_PRINT : 0;
+		$this->jsonEncodeOptions = $pretty ? JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES: 0;
 	}
 
 	public function write($data) {

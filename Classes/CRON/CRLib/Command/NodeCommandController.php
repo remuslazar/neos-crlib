@@ -251,9 +251,10 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 	 * @param int $limit limit the result set
 	 * @param bool $count Display only the count and not the record data itself
 	 * @param bool $json Output data JSON formatted (one record per line)
+	 * @param bool $map Perform properties mapping
 	 */
 	public function findCommand($path=null, $type=null, $search='', $property='',
-	                            $useSubtypes=true, $limit=null, $count=false, $json=false) {
+	                            $useSubtypes=true, $limit=null, $count=false, $json=false, $map=false) {
 		$path = $path ? $this->getPath($path) : null;
 		$type = $this->getTypes($type, $useSubtypes);
 
@@ -281,11 +282,16 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 			if ($limit !== null) $query->setMaxResults($limit);
 
 			$iterable = $query->iterate(NULL, Query::HYDRATE_SCALAR);
+			//$this->nodeImportExportService->setResourcePath();
 			$jsonWriter = $json ? new JSONArrayWriter(true) : null;
 			foreach ($iterable as $row) {
 				$node = $row[0];
 				if (!$property || $this->matchTermInProperty($node, $search, $property)) {
 					if ($json) {
+						if ($map) {
+							$node['n_properties'] = $this->nodeImportExportService->convertPropertiesToArray(
+								$node['n_properties']);
+						}
 						$jsonWriter->write($node);
 					} else {
 						$this->displayNodes([$node]);
