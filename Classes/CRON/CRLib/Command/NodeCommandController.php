@@ -499,9 +499,9 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 	public function repairCommand($nodeType='', $dryRun=false, $cleanup=false) {
 		/** @var NodeCommandControllerPlugin $plugin */
 		$plugin = $this->objectManager->get('TYPO3\TYPO3CR\Command\NodeCommandControllerPlugin');
-		$plugin->invokeSubCommand('repair', $this->output, $nodeType ?
-			$this->nodeTypeManager->getNodeType($nodeType) : null,
-			'live', $dryRun, $cleanup); // no dry run, no cleanups
+		$plugin->invokeSubCommand('repair', $this->output,
+			$nodeType ? $this->nodeTypeManager->getNodeType($nodeType) : null,
+			'live', $dryRun, $cleanup);
 	}
 
 
