@@ -147,17 +147,34 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 	 *
 	 * @param string $filename JSON file on local filesystem
 	 * @param string $path limit the processing on that path only
+	 * @param bool $info dont process anything, show just some infos about the input data
 	 * @param boolean $dryRun perform a dry run
 	 */
-	public function importCommand($filename, $path=null, $dryRun=false) {
+	public function importCommand($filename, $path=null, $info=false, $dryRun=false) {
 		$iterator = new JSONFileReader($filename);
+
+		if ($info) $dryRun = true;
 
 		// dry run to get the count of the records to import later on
 		$count = 0;
 		foreach ($iterator as $data) {
 			$nodePath = $data['path'];
 			if ($path && strpos($nodePath, $path) !== 0) continue;
+
+			if ($info) {
+				$sitePath = null;
+				$depth = substr_count($nodePath, '/');
+				if ($depth == 2) {
+					$sitePath = $data['path'];
+					$this->outputLine('site: %s', [$sitePath]);
+				}
+			}
 			$count++;
+		}
+
+		if ($info) {
+			$this->outputLine('%d records successfully validated for import.', [$count]);
+			$this->quit(0);
 		}
 
 		$progress = $count > 1000; if ($progress) { $this->output->progressStart($count); $step = $count / 100; }
