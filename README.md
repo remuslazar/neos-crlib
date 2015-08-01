@@ -39,22 +39,13 @@ and basic search.
 
 Call `flow help|grep node` to get a list of currently implemented commands. 
 
-NodeQueryService and NodeIterator Classes
+NodeQuery and NodeIterator Classes
 -----------------------------------------
 
-### NodeQueryService
+### NodeQuery
 
-This is a Singleton, can be injected with:
-
-```
-	/**
-	 * @Flow\Inject
-	 * @var \CRON\CRLib\Service\NodeQueryService
-	 */
-	protected $nodeQueryService;
-```
-
-There is a findQuery() method ond some others, refer to the inline PHPDoc for parameters etc.
+Can be used to construct ORM Queries for NodeData, has some public methods to add Constraints like
+Path or NodeType and also a convenience Initializer.
 
 ### NodeIterator Class
 
@@ -62,7 +53,7 @@ The Utility Class `NodeIterator` can be used to loop over a node subset using th
 to loop over all nodes:
 
 ```
-foreach(new NodeIterator($this->nodeQueryService->findQuery()) as $node) {
+foreach(new NodeIterator(new NodeQuery()) as $node) {
     // do something with $node
 }
 ```
@@ -78,8 +69,8 @@ property and reports the memory usage and some performance data:
 
 ```
 	public function getAllNodesCommand() {
-		$query = $this->nodeQueryService->findQuery();
-		$iterator = new NodeIterator($query);
+		$nodeQuery = new NodeQuery();
+		$iterator = new NodeIterator($nodeQuery->getQuery());
 		$time = microtime(true);
 		$count = 0;
 		$md5 = '';

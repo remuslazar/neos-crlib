@@ -9,7 +9,6 @@ namespace CRON\CRLib\Command;
 use CRON\CRLib\Utility\JSONFileReader;
 use CRON\CRLib\Utility\NodeQuery;
 use Doctrine\ORM\Query;
-use Doctrine\ORM\QueryBuilder;
 use TYPO3\Flow\Annotations as Flow;
 use TYPO3\Neos\Domain\Model\Site;
 use TYPO3\TYPO3CR\Domain\Model\NodeInterface;
