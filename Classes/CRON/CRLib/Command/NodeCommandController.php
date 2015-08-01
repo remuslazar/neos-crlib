@@ -281,7 +281,7 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 			if ($limit !== null) $query->setMaxResults($limit);
 
 			$iterable = $query->iterate(NULL, Query::HYDRATE_SCALAR);
-			$jsonWriter = $json ? new JSONArrayWriter() :null;
+			$jsonWriter = $json ? new JSONArrayWriter() : null;
 			foreach ($iterable as $row) {
 				$node = $row[0];
 				if (!$property || $this->matchTermInProperty($node, $search, $property)) {
