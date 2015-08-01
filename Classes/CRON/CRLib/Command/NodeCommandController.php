@@ -161,8 +161,6 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 
 		$progress = $count > 1000; if ($progress) { $this->output->progressStart($count); $step = $count / 100; }
 
-		if (!$dryRun) $this->nodeImportExportService->createSitesNode();
-
 		$i=0;
 		$importedCount=0;
 		foreach ($iterator as $data) {

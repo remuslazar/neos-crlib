@@ -72,18 +72,6 @@ class NodeImportExportService {
 		if (!is_dir(self::RESOURCES_DIR)) mkdir(self::RESOURCES_DIR);
 	}
 
-	public function createSitesNode() {
-		$rootNode = $this->contextFactory->create()->getRootNode();
-		// We fetch the workspace to be sure it's known to the persistence manager and persist all
-		// so the workspace and site node are persisted before we import any nodes to it.
-		$rootNode->getContext()->getWorkspace();
-		$sitesNode = $rootNode->getNode('/sites');
-		if ($sitesNode === NULL) {
-			$rootNode->createSingleNode('sites');
-		}
-		$this->persistenceManager->persistAll();
-	}
-
 	/**
 	 * @param Connection $connection
 	 * @param array $data
