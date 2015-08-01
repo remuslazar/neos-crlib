@@ -84,8 +84,8 @@ class NodeQuery {
 	 * @param string $identifier
 	 */
 	public function addIdentifierConstraint($identifier) {
-		$this->queryBuilder->andWhere('n.identifier = :identifier')
-		                   ->setParameter('identifier', $identifier);
+		$this->queryBuilder->andWhere('n.identifier LIKE :identifier')
+		                   ->setParameter('identifier', $identifier.'%');
 	}
 
 	/**

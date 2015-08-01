@@ -8,8 +8,12 @@ namespace CRON\CRLib\Command;
 
 use CRON\CRLib\Utility\JSONFileReader;
 use CRON\CRLib\Utility\NodeQuery;
+use Doctrine\DBAL\Query\QueryException;
+use Doctrine\ORM\NonUniqueResultException;
+use Doctrine\ORM\NoResultException;
 use Doctrine\ORM\Query;
 use TYPO3\Flow\Annotations as Flow;
+use TYPO3\Flow\Exception;
 use TYPO3\Neos\Domain\Model\Site;
 use TYPO3\TYPO3CR\Domain\Model\NodeInterface;
 use TYPO3\TYPO3CR\Domain\Service\Context;
@@ -281,6 +285,32 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 		}
 	}
 
+	private function listNodes($path, $type, $level, $indend = '') {
+		if ($childNodes = $this->context->getNode($path)->getChildNodes($type)) {
+			foreach ($childNodes as $childNode) {
+				$this->displayNodes([$childNode], $indend);
+				if ($level > 0) {
+					$this->listNodes($childNode->getPath(), $type, $level - 1, $indend . '  ');
+				}
+			}
+		}
+	}
+
+	/**
+	 * List all (document) nodes on a given path for the current site
+	 *
+	 * To list all available nodes and not apply the NodeType filter, use "null" as the type parameter.
+	 *
+	 * @param string $path relative to the site root. Defaults to /
+	 * @param string $type node type filter, e.g. 'CRON.DazSite:*', defaults to TYPO3.Neos:Document.
+	 * @param int $depth recursion depth, defaults to 0
+	 * @return void
+	 */
+	public function listCommand($path = '/', $type = 'TYPO3.Neos:Document', $depth = 0) {
+		$path = $this->getPath($path);
+		$this->listNodes($path, $type, $depth);
+	}
+
 	private function reportMemoryUsage() {
 		file_put_contents('php://stderr', sprintf(' > mem: %.1f MB'."\n", memory_get_peak_usage()/1024/1024));
 	}
@@ -319,22 +349,23 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 	protected function displayNodes($nodes, $indend = '', $propertyName='title') {
 		/** @var NodeInterface $node */
 		foreach($nodes as $node) {
-			$this->outputFormatted('%s%s [%s] "%s" (%s)',[
+			$this->outputFormatted('%s%s (%s) "%s"',[
 				$indend,
 				is_array($node) ? $node['n_path'] : $node->getPath(),
-				is_array($node) ? $node['n_nodeType'] : (string)$node->getNodeType(),
+				substr(is_array($node) ? $node['n_identifier'] : $node->getIdentifier(), 0,8),
 				is_array($node) ? (isset($node['n_properties'][$propertyName]) ?
-					$node['n_properties'][$propertyName] : '' ) : $node->getProperty($propertyName),
-				is_array($node) ? $node['n_identifier']  : $node->getIdentifier()
+					$node['n_properties'][$propertyName] : '' ) : $node->getProperty($propertyName)
 			]);
 		}
 	}
 
 	/**
-	 * Dump all data of the node specified by the uuid
+	 * Dump all data of the node specified by the uuid JSON formatted
 	 *
 	 * @param string $uuid uuid of the node, e.g. 4b3d2a07-6d1f-5311-3431-cc80d41c3622 OR the node path
-	 * @param bool $json Output data JSON formatted (one record per line)
+	 * @param bool $json
+	 * @throws Exception
+	 * @throws NoResultException
 	 */
 	public function dumpCommand($uuid, $json=false) {
 
@@ -346,31 +377,15 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 			}
 		}
 
-		if ($json) {
-			$query = $this->nodeQueryService->getByIdentifierQuery($uuid, $this->context->getWorkspaceName());
-			if ($result = $query->getResult(Query::HYDRATE_ARRAY)) {
-				echo json_encode($result[0]);
-			}
-		} else {
-			$node = $this->context->getNodeByIdentifier($uuid);
-			if (!$node) {
-				$this->outputLine('Not found.');
-				$this->quit(1);
-			}
-
-			$this->outputLine();
-			$this->outputLine('%s', [$node->getNodeType()]);
-			$this->outputLine();
-
-			foreach($node->getProperties() as $propertyName => $value) {
-				try {
-					printf('%-25s: "%s"', $propertyName, $value === null ? 'NULL' : $value);
-					$this->outputLine();
-				} catch (\Exception $e) {
-				}
-			}
-			$this->outputLine();
+		$nodeQuery = new NodeQuery();
+		$nodeQuery->addIdentifierConstraint($uuid);
+		try {
+			$result = $nodeQuery->getQuery()->getSingleResult(Query::HYDRATE_ARRAY);
+		} catch (NonUniqueResultException $e) {
+			throw new Exception('Non unique result');
 		}
+
+		echo json_encode($result, JSON_PRETTY_PRINT),"\n";
 	}
 
 	/**
