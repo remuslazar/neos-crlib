@@ -239,13 +239,13 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 	 * @param string $path Start path, relative to the site root
 	 * @param string $type NodeType filter (csv list)
 	 * @param string $search Search string for exact match or regex like e.g. '/^myprefix/i'
-	 * @param string $property Limit the matching to this property (if unset search in the full json blob)
-	 * @param string $uuid search by UUID
+	 * @param string $property Limit the matching to this property (if unset search in the full JSON blob with LIKE %term%)
+	 * @param string $uuid Search by UUID (can be an UUID prefix)
 	 * @param bool $useSubtypes Include inherited node types
-	 * @param int $limit limit the result set
+	 * @param int $limit Limit the result set
 	 * @param bool $count Display only the count and not the record data itself
 	 * @param bool $json Output data JSON formatted (one record per line)
-	 * @param bool $map Perform properties mapping
+	 * @param bool $map Perform properties mapping and export resources in the res folder
 	 */
 	public function findCommand($path=null, $type=null, $search='', $property='', $uuid='',
 	                            $useSubtypes=true, $limit=null, $count=false, $json=false, $map=false) {
