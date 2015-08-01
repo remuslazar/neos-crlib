@@ -236,19 +236,19 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 	/**
 	 * Find TYPO3CR nodes
 	 *
-	 * @param string $path Start path, relative to the site root
-	 * @param string $type NodeType filter (csv list)
+	 * @param string $uuid Search by UUID (can be an UUID prefix)
+	 * @param string $path Match by path prefix (can be abs. or relative to the site root)
+	 * @param string $type NodeType filter (csv list, e.g. TYPO3.Neos:Document)
+	 * @param bool $useSubtypes Also include inherited NodeTypes (default)
 	 * @param string $search Search string for exact match or regex like e.g. '/^myprefix/i'
 	 * @param string $property Limit the matching to this property (if unset search in the full JSON blob with LIKE %term%)
-	 * @param string $uuid Search by UUID (can be an UUID prefix)
-	 * @param bool $useSubtypes Include inherited node types
 	 * @param int $limit Limit the result set
 	 * @param bool $count Display only the count and not the record data itself
 	 * @param bool $json Output data JSON formatted (one record per line)
 	 * @param bool $map Perform properties mapping and export resources in the res folder
 	 */
-	public function findCommand($path=null, $type=null, $search='', $property='', $uuid='',
-	                            $useSubtypes=true, $limit=null, $count=false, $json=false, $map=false) {
+	public function findCommand($uuid='', $path=null, $type=null, $useSubtypes=true, $search='', $property='',
+	                            $limit=null, $count=false, $json=false, $map=false) {
 		$path = $path ? $this->getPath($path) : null;
 		$type = $this->getTypes($type, $useSubtypes);
 
