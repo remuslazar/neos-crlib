@@ -494,7 +494,7 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 	 *
 	 * @param string $nodeType Only handle this node type
 	 * @param boolean $dryRun Don't do any changes
-	 * @param boolean $cleanup Perform cleanup tasks
+	 * @param boolean $cleanup Perform cleanup tasks (the cleanup tasks will NOT respect the nodetype filter..)
 	 */
 	public function repairCommand($nodeType='', $dryRun=false, $cleanup=false) {
 		/** @var NodeCommandControllerPlugin $plugin */
