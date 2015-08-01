@@ -53,7 +53,7 @@ The Utility Class `NodeIterator` can be used to loop over a node subset using th
 to loop over all nodes:
 
 ```
-foreach(new NodeIterator(new NodeQuery()) as $node) {
+foreach(new NodeIterator((new NodeQuery())->getQuery()) as $node) {
     // do something with $node
 }
 ```
