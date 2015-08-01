@@ -9,7 +9,7 @@ namespace CRON\CRLib\Command;
 use CRON\CRLib\Utility\JSONArrayWriter;
 use CRON\CRLib\Utility\JSONFileReader;
 use CRON\CRLib\Utility\NodeQuery;
-use Doctrine\DBAL\Query\QueryException;
+use Doctrine\ORM\EntityManager;
 use Doctrine\ORM\NonUniqueResultException;
 use Doctrine\ORM\NoResultException;
 use Doctrine\ORM\Query;
@@ -58,12 +58,6 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 	 * @var \TYPO3\Neos\Domain\Repository\SiteRepository
 	 */
 	protected $siteRepository;
-
-	/**
-	 * @Flow\Inject
-	 * @var \CRON\CRLib\Service\NodeQueryService
-	 */
-	protected $nodeQueryService;
 
 	/**
 	 * @Flow\Inject
@@ -235,9 +229,11 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 	 * Prune all nodes in all workspaces
 	 */
 	public function pruneCommand() {
-		$em = $this->nodeQueryService->getEntityManager();
+		/** @var EntityManager $em */
+		$em = $this->objectManager->get('Doctrine\Common\Persistence\ObjectManager');
 		$em->getConnection()->setAutoCommit(true);
-		$em->getConnection()->executeQuery('delete from typo3_typo3cr_domain_model_nodedata where parentpath not in ("","/sites")');
+		$em->getConnection()->executeQuery(
+			'delete from typo3_typo3cr_domain_model_nodedata where parentpath not in ("","/sites")');
 	}
 
 	/**
