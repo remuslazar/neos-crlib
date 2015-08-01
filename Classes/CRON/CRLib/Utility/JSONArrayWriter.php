@@ -11,21 +11,26 @@ namespace CRON\CRLib\Utility;
 
 /**
  * @property bool commaIsNeeded
+ * @property int jsonEncodeOptions
  */
 class JSONArrayWriter {
 
-	function __construct() {
-		echo '[', "\n";
+	/**
+	 * @param bool $pretty
+	 */
+	function __construct($pretty=false) {
+		echo '[';
 		$this->commaIsNeeded = false;
+		$this->jsonEncodeOptions = $pretty ? JSON_PRETTY_PRINT : 0;
 	}
 
 	public function write($data) {
 		if ($this->commaIsNeeded) echo ",\n"; else $this->commaIsNeeded = true;
-		echo json_encode($data, JSON_PRETTY_PRINT);
+		echo json_encode($data, $this->jsonEncodeOptions);
 	}
 
 	function __destruct() {
-		echo "\n", ']', "\n";
+		echo ']', "\n";
 	}
 
 }
