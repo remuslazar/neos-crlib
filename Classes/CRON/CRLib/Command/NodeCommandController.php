@@ -6,6 +6,10 @@ namespace CRON\CRLib\Command;
  *                                                                        *
  *                                                                        */
 
+use CRON\CRLib\Utility\JSONArrayWriter;
+use CRON\CRLib\Utility\JSONFileReader;
+use CRON\CRLib\Utility\NodeQuery;
+use Doctrine\ORM\EntityManager;
 use Doctrine\ORM\Query;
 use TYPO3\Flow\Annotations as Flow;
 use TYPO3\Flow\Object\ObjectManagerInterface;
@@ -54,15 +58,15 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 
 	/**
 	 * @Flow\Inject
-	 * @var \CRON\CRLib\Service\NodeQueryService
-	 */
-	protected $nodeQueryService;
-
-	/**
-	 * @Flow\Inject
 	 * @var ObjectManagerInterface
 	 */
 	protected $objectManager;
+
+	/**
+	 * @Flow\Inject
+	 * @var \CRON\CRLib\Service\NodeImportExportService
+	 */
+	protected $nodeImportExportService;
 
 	/**
 	 * @throws \Exception
@@ -71,13 +75,19 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 		/** @var Site $currentSite */
 		/** @noinspection PhpUndefinedMethodInspection */
 		$currentSite = $this->siteRepository->findFirstOnline();
-		if (!$currentSite) throw new \Exception('No site found');
-		$this->sitePath = '/sites/' . $currentSite->getNodeName();
-		$this->context = $this->contextFactory->create([
-			'currentSite' => $currentSite,
-			'invisibleContentShown' => TRUE,
-			'inaccessibleContentShown' => TRUE
-		]);
+		if ($currentSite) {
+			$this->sitePath = '/sites/' . $currentSite->getNodeName();
+			$this->context = $this->contextFactory->create([
+				'currentSite' => $currentSite,
+				'invisibleContentShown' => TRUE,
+				'inaccessibleContentShown' => TRUE
+			]);
+		} else {
+			$this->context = $this->contextFactory->create([
+				'invisibleContentShown' => TRUE,
+				'inaccessibleContentShown' => TRUE
+			]);
+		}
 	}
 
 	/**
@@ -102,57 +112,215 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 	}
 
 	/**
+	 * Export all nodes to JSON. Linked resources are saved in a relative directory "res".
+	 *
+	 * @param string $filename
+	 * @param string $path limit to this path only
+	 * @param string $type NodeType filter (csv list)
+	 */
+	public function exportCommand($filename=null, $path=null, $type=null) {
+		$path = $path ? $this->getPath($path) : null;
+		$types = $this->getTypes($type);
+
+		$nodeQuery = new NodeQuery($types, $path);
+
+		$count = $nodeQuery->getCount();
+		if (!$count) {
+			$this->outputLine('Error: result set is empty.');
+			$this->quit(1);
+		}
+
+		$fp = null; if ($filename) { $fp = fopen($filename, 'w'); }
+
+		$progress = $fp && ($count > 1000); if ($progress) { $this->output->progressStart($count); $step = $count / 100; }
+
+		$iterable = $nodeQuery->getQuery()->iterate(NULL, Query::HYDRATE_SCALAR);
+		$i = 0; foreach ($iterable as $row) {
+			$data = $this->nodeImportExportService->convertNodeDataForExport($row[0]);
+			$json = json_encode($data) . "\n";
+			if ($fp) fwrite($fp, $json); else echo $json;
+			$i++; if ($progress && $i % $step === 0) $this->output->progressAdvance($step);
+		}
+		if ($fp) fclose($fp);
+
+		if ($progress) { $this->output->progressSet($count); $this->output->progressFinish(); }
+	}
+
+	/**
+	 * Import node data from a JSON file
+	 *
+	 * @param string $filename JSON file on local filesystem
+	 * @param string $path limit the processing on that path only
+	 * @param bool $info dont process anything, show just some infos about the input data
+	 * @param boolean $dryRun perform a dry run
+	 */
+	public function importCommand($filename, $path=null, $info=false, $dryRun=false) {
+		$iterator = new JSONFileReader($filename);
+
+		if ($info) $dryRun = true;
+
+		// dry run to get the count of the records to import later on
+		$count = 0;
+		$documentCount=0;
+		$missingNodeTypes=[];
+
+		foreach ($iterator as $data) {
+			$nodePath = $data['path'];
+			if ($path && strpos($nodePath, $path) !== 0) continue;
+
+			if ($info) {
+				$sitePath = null;
+				$depth = substr_count($nodePath, '/');
+				if ($depth == 2) {
+					$sitePath = $data['path'];
+					$this->outputLine('site: %s', [$sitePath]);
+				}
+				$nodeType = $data['nodeType'];
+				if ($this->nodeTypeManager->hasNodeType($nodeType)) {
+					$nodeType = $this->nodeTypeManager->getNodeType($nodeType);
+					if ($nodeType->isOfType('TYPO3.Neos:Document')) {
+						$documentCount++;
+					}
+				} else {
+					$missingNodeTypes[$nodeType] = true;
+				}
+			}
+			$count++;
+		}
+
+		$missingNodeTypes = array_flip($missingNodeTypes);
+
+		if ($info) {
+			if ($missingNodeTypes) {
+				$this->outputLine('WARN: missing NodeTypes: %s', [implode(',', $missingNodeTypes)]);
+			}
+			$this->outputLine('%d nodes (%d pages) available for import.', [
+				$count, $documentCount]);
+			$this->quit(0);
+		}
+
+		$progress = $count > 1000; if ($progress) { $this->output->progressStart($count); $step = $count / 100; }
+
+		$i=0;
+		$importedCount=0;
+		foreach ($iterator as $data) {
+			$nodePath = $data['path'];
+			if ($path && strpos($nodePath, $path) !== 0) continue;
+			if (!$dryRun) {
+				$parentPath = $data['parentPath'];
+				if ($parentPath && $parentPath != '/' && $parentPath != '/sites') {
+					$importedCount++;
+					$this->nodeImportExportService->processJSONRecord($data);
+				}
+			}
+			$i++; if ($progress && $i % $step === 0) $this->output->progressAdvance($step);
+		}
+		if ($progress) {
+			$this->output->progressSet($count); $this->output->progressFinish();
+		} elseif ($importedCount) {
+			$this->outputLine('Import process done, %d node(s) imported.', [$importedCount]);
+		}
+	}
+
+	/**
+	 * Prune all nodes in all workspaces
+	 */
+	public function pruneCommand() {
+		/** @var EntityManager $em */
+		$em = $this->objectManager->get('Doctrine\Common\Persistence\ObjectManager');
+		$em->getConnection()->setAutoCommit(true);
+		$em->getConnection()->executeQuery(
+			'delete from typo3_typo3cr_domain_model_nodedata where parentpath not in ("","/sites")');
+	}
+
+	/**
 	 * Find TYPO3CR nodes
 	 *
-	 * @param string $path Start path, relative to the site root
-	 * @param string $type NodeType filter (csv list)
+	 * @param string $uuid Search by UUID (can be an UUID prefix)
+	 * @param string $path Match by path prefix (can be abs. or relative to the site root)
+	 * @param string $type NodeType filter (csv list, e.g. TYPO3.Neos:Document)
+	 * @param bool $useSubtypes Also include inherited NodeTypes (default)
 	 * @param string $search Search string for exact match or regex like e.g. '/^myprefix/i'
-	 * @param string $property Limit the matching to this property (if unset search in the full json blob)
-	 * @param bool $useSubtypes Include inherited node types
-	 * @param int $limit limit the result set
+	 * @param string $property Limit the matching to this property (if unset search in the full JSON blob with LIKE %term%)
+	 * @param int $limit Limit the result set
 	 * @param bool $count Display only the count and not the record data itself
 	 * @param bool $json Output data JSON formatted (one record per line)
+	 * @param bool $map Perform properties mapping and export resources in the res folder
 	 */
-	public function findCommand($path=null, $type=null, $search='', $property='',
-	                            $useSubtypes=true, $limit=null, $count=false, $json=false) {
+	public function findCommand($uuid='', $path=null, $type=null, $useSubtypes=true, $search='', $property='',
+	                            $limit=null, $count=false, $json=false, $map=false) {
 		$path = $path ? $this->getPath($path) : null;
 		$type = $this->getTypes($type, $useSubtypes);
+
+		$nodeQuery = new NodeQuery($type, $path);
+
+		if ($uuid) $nodeQuery->addIdentifierConstraint($uuid);
 
 		if ($count) {
 			if ($property) {
 				// unfortunately we can't use the getCount() method here
 				$count = 0;
-				$iterable = $this->nodeQueryService->findQuery($type, $path)
-				                                   ->iterate(null,Query::HYDRATE_SCALAR);
+				$iterable = $nodeQuery->getQuery()->iterate(null,Query::HYDRATE_SCALAR);
 				foreach($iterable as $node) {
 					$node = $node[0];
 					if ($this->matchTermInProperty($node, $search, $property)) { $count++; }
 				}
 			} else {
-				$count = $this->nodeQueryService->getCount($type, $path, $search);
+				$nodeQuery->addSearchTermConstraint($search);
+				$count = $nodeQuery->getCount();
 			}
 
 			$this->outputLine('%d node(s).', [$count]);
 		} else {
-			$query = $this->nodeQueryService->findQuery($type, $path, $property ? null : $search);
+			if (!$property) $nodeQuery->addSearchTermConstraint($search);
+			$query = $nodeQuery->getQuery();
 
 			if ($limit !== null) $query->setMaxResults($limit);
 
 			$iterable = $query->iterate(NULL, Query::HYDRATE_SCALAR);
-			if ($json) echo '['; $commaIsNeeded = false;
+			//$this->nodeImportExportService->setResourcePath();
+			$jsonWriter = $json ? new JSONArrayWriter(true) : null;
 			foreach ($iterable as $row) {
 				$node = $row[0];
 				if (!$property || $this->matchTermInProperty($node, $search, $property)) {
 					if ($json) {
-						if ($commaIsNeeded) echo ",\n"; else $commaIsNeeded = true;
-						echo json_encode($node);
+						if ($map) {
+							$node['n_properties'] = $this->nodeImportExportService->convertPropertiesToArray(
+								$node['n_properties']);
+						}
+						$jsonWriter->write($node);
 					} else {
 						$this->displayNodes([$node]);
 					}
 				}
 			}
-			if ($json) echo ']';
 		}
+	}
+
+	private function listNodes($path, $type, $level, $indend = '') {
+		if ($childNodes = $this->context->getNode($path)->getChildNodes($type)) {
+			foreach ($childNodes as $childNode) {
+				$this->displayNodes([$childNode], $indend);
+				if ($level > 0) {
+					$this->listNodes($childNode->getPath(), $type, $level - 1, $indend . '  ');
+				}
+			}
+		}
+	}
+
+	/**
+	 * List all (document) nodes on a given path for the current site
+	 *
+	 * To list all available nodes and not apply the NodeType filter, use "null" as the type parameter.
+	 *
+	 * @param string $path relative to the site root. Defaults to /
+	 * @param string $type node type filter, e.g. 'CRON.DazSite:*', defaults to TYPO3.Neos:Document.
+	 * @param int $depth recursion depth, defaults to 0
+	 * @return void
+	 */
+	public function listCommand($path = '/', $type = 'TYPO3.Neos:Document', $depth = 0) {
+		$path = $this->getPath($path);
+		$this->listNodes($path, $type, $depth);
 	}
 
 	private function reportMemoryUsage() {
@@ -193,57 +361,13 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 	protected function displayNodes($nodes, $indend = '', $propertyName='title') {
 		/** @var NodeInterface $node */
 		foreach($nodes as $node) {
-			$this->outputFormatted('%s%s [%s] "%s" (%s)',[
+			$this->outputFormatted('%s%s (%s) "%s"',[
 				$indend,
 				is_array($node) ? $node['n_path'] : $node->getPath(),
-				is_array($node) ? $node['n_nodeType'] : (string)$node->getNodeType(),
+				substr(is_array($node) ? $node['n_identifier'] : $node->getIdentifier(), 0,8),
 				is_array($node) ? (isset($node['n_properties'][$propertyName]) ?
-					$node['n_properties'][$propertyName] : '' ) : $node->getProperty($propertyName),
-				is_array($node) ? $node['n_identifier']  : $node->getIdentifier()
+					$node['n_properties'][$propertyName] : '' ) : $node->getProperty($propertyName)
 			]);
-		}
-	}
-
-	/**
-	 * Dump all data of the node specified by the uuid
-	 *
-	 * @param string $uuid uuid of the node, e.g. 4b3d2a07-6d1f-5311-3431-cc80d41c3622 OR the node path
-	 * @param bool $json Output data JSON formatted (one record per line)
-	 */
-	public function dumpCommand($uuid, $json=false) {
-
-		if (strpos($uuid, '/') !== false) {
-			// it looks like a path
-			$uuid = $this->getPath($uuid);
-			if ($node = $this->context->getNode($uuid)) {
-				$uuid = $node->getIdentifier();
-			}
-		}
-
-		if ($json) {
-			$query = $this->nodeQueryService->getByIdentifierQuery($uuid, $this->context->getWorkspaceName());
-			if ($result = $query->getResult(Query::HYDRATE_ARRAY)) {
-				echo json_encode($result[0]);
-			}
-		} else {
-			$node = $this->context->getNodeByIdentifier($uuid);
-			if (!$node) {
-				$this->outputLine('Not found.');
-				$this->quit(1);
-			}
-
-			$this->outputLine();
-			$this->outputLine('%s', [$node->getNodeType()]);
-			$this->outputLine();
-
-			foreach($node->getProperties() as $propertyName => $value) {
-				try {
-					printf('%-25s: "%s"', $propertyName, $value === null ? 'NULL' : $value);
-					$this->outputLine();
-				} catch (\Exception $e) {
-				}
-			}
-			$this->outputLine();
 		}
 	}
 
@@ -362,15 +486,22 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 	}
 
 	/**
-	 * Perform a node repair operation selectively, only for the specified NodeType
+	 * Perform a TYPO3CR node repair operation in the live workspace
 	 *
-	 * @param string $type NodeType Filter
+	 * The difference between calling this command and the typo3cr:node:repair is that this command
+	 * will skip the URI Path generation, which runs prior to the repair tasks and is problematic while
+	 * having too much nodes, because it doesn't scale well nor use the NodeType filter.
+	 *
+	 * @param string $nodeType Only handle this node type
+	 * @param boolean $dryRun Don't do any changes
+	 * @param boolean $cleanup Perform cleanup tasks (the cleanup tasks will NOT respect the nodetype filter..)
 	 */
-	public function repairCommand($type) {
+	public function repairCommand($nodeType='', $dryRun=false, $cleanup=false) {
 		/** @var NodeCommandControllerPlugin $plugin */
 		$plugin = $this->objectManager->get('TYPO3\TYPO3CR\Command\NodeCommandControllerPlugin');
-		$plugin->invokeSubCommand('repair', $this->output, $this->nodeTypeManager->getNodeType($type),
-			'live', false, false); // no dry run, no cleanups
+		$plugin->invokeSubCommand('repair', $this->output, $nodeType ?
+			$this->nodeTypeManager->getNodeType($nodeType) : null,
+			'live', $dryRun, $cleanup); // no dry run, no cleanups
 	}
 
 
