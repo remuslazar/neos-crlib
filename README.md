@@ -133,6 +133,42 @@ using my iMac (middle 2010):
 Use the NodeQueryService Class to create Doctrine ORM Queries, which can be used for the NodeIterator class or
 stand alone. Use the source code of this package as an inspiration source for more usage examples..
 
+
+Import/Export Feature
+---------------------
+
+There are 2 commands for importing/exporting nodes available. The Data is exported using the JSONL Format
+(one JSON record per line) and can be used directly for feeding e.g. mongoimport, to do some data mining
+afterwards. The resources are exported in the same format as the `site:export` command is using and are saved
+in a folder called `res` in the cwd.
+
+Currently the data can only be imported onto the same location, but some path manipulation features
+(map source/destination paths) will be available soon.
+
+Technically, the whole process is implemented using the PHP Iterable Interface and it does scale pretty well
+while using very large sites.
+
+### Benchmark
+
+A (non-representative) benchmark using my iMac (mid2010) in a docker environment:
+
+```
+$ time ./flow site:export --filename site-export-dir/Sites.xml
+All sites have been exported to "site-export-dir/Sites.xml".
+
+real	3m20.679s
+user	1m3.250s
+sys	0m2.120s
+
+$ time ./flow node:export --filename allnodes.jsonl
+ 138720/138720 [============================] 100%
+
+real	0m25.977s
+user	0m20.970s
+sys	0m2.210s
+```
+
+
 Known Limitations
 -----------------
 
