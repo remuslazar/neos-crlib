@@ -7,6 +7,7 @@ namespace CRON\CRLib\Command;
  *                                                                        */
 
 use CRON\CRLib\Utility\JSONFileReader;
+use CRON\CRLib\Utility\NodeQuery;
 use Doctrine\ORM\Query;
 use Doctrine\ORM\QueryBuilder;
 use TYPO3\Flow\Annotations as Flow;
@@ -118,7 +119,12 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 		$path = $path ? $this->getPath($path) : null;
 		$types = $this->getTypes($type);
 
-		$count = $this->nodeQueryService->getCount($types, $path);
+		$nodeQuery = new NodeQuery();
+
+		if ($path) $nodeQuery->addPathConstraint($path);
+		if ($types) $nodeQuery->addTypeConstraint($types);
+
+		$count = $nodeQuery->getCount();
 		if (!$count) {
 			$this->outputLine('Error: result set is empty.');
 			$this->quit(1);
@@ -128,8 +134,7 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 
 		$progress = $fp && ($count > 1000); if ($progress) { $this->output->progressStart($count); $step = $count / 100; }
 
-		$query = $this->nodeQueryService->findQuery($types, $path);
-		$iterable = $query->iterate(NULL, Query::HYDRATE_SCALAR);
+		$iterable = $nodeQuery->getQuery()->iterate(NULL, Query::HYDRATE_SCALAR);
 		$i = 0; foreach ($iterable as $row) {
 			$data = $this->nodeImportExportService->convertNodeDataForExport($row[0]);
 			$json = json_encode($data) . "\n";
