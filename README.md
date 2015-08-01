@@ -139,7 +139,7 @@ Import/Export Feature
 
 There are 2 commands for importing/exporting nodes available. The Data is exported using the JSONL Format
 (one JSON record per line) and can be used directly for feeding e.g. mongoimport, to do some data mining
-afterwards. The resources are exported in the same format as the `site:export` command is using and are saved
+afterwards. The resources are exported in the same format as the `site:export` command is generating and saved
 in a folder called `res` in the cwd.
 
 Currently the data can only be imported onto the same location, but some path manipulation features
