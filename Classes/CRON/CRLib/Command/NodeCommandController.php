@@ -6,6 +6,7 @@ namespace CRON\CRLib\Command;
  *                                                                        *
  *                                                                        */
 
+use CRON\CRLib\Utility\JSONArrayWriter;
 use CRON\CRLib\Utility\JSONFileReader;
 use CRON\CRLib\Utility\NodeQuery;
 use Doctrine\DBAL\Query\QueryException;
@@ -280,19 +281,17 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 			if ($limit !== null) $query->setMaxResults($limit);
 
 			$iterable = $query->iterate(NULL, Query::HYDRATE_SCALAR);
-			if ($json) echo '['; $commaIsNeeded = false;
+			$jsonWriter = $json ? new JSONArrayWriter() :null;
 			foreach ($iterable as $row) {
 				$node = $row[0];
 				if (!$property || $this->matchTermInProperty($node, $search, $property)) {
 					if ($json) {
-						if ($commaIsNeeded) echo ",\n"; else $commaIsNeeded = true;
-						echo json_encode($node);
+						$jsonWriter->write($node);
 					} else {
 						$this->displayNodes([$node]);
 					}
 				}
 			}
-			if ($json) echo ']';
 		}
 	}
 
