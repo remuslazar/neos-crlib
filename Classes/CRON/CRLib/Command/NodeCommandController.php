@@ -243,18 +243,21 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 	 * @param string $type NodeType filter (csv list)
 	 * @param string $search Search string for exact match or regex like e.g. '/^myprefix/i'
 	 * @param string $property Limit the matching to this property (if unset search in the full json blob)
+	 * @param string $uuid search by UUID
 	 * @param bool $useSubtypes Include inherited node types
 	 * @param int $limit limit the result set
 	 * @param bool $count Display only the count and not the record data itself
 	 * @param bool $json Output data JSON formatted (one record per line)
 	 * @param bool $map Perform properties mapping
 	 */
-	public function findCommand($path=null, $type=null, $search='', $property='',
+	public function findCommand($path=null, $type=null, $search='', $property='', $uuid='',
 	                            $useSubtypes=true, $limit=null, $count=false, $json=false, $map=false) {
 		$path = $path ? $this->getPath($path) : null;
 		$type = $this->getTypes($type, $useSubtypes);
 
 		$nodeQuery = new NodeQuery($type, $path);
+
+		if ($uuid) $nodeQuery->addIdentifierConstraint($uuid);
 
 		if ($count) {
 			if ($property) {
@@ -369,35 +372,6 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 					$node['n_properties'][$propertyName] : '' ) : $node->getProperty($propertyName)
 			]);
 		}
-	}
-
-	/**
-	 * Dump all data of the node specified by the uuid JSON formatted
-	 *
-	 * @param string $uuid uuid of the node, e.g. 4b3d2a07-6d1f-5311-3431-cc80d41c3622 OR the node path
-	 * @param bool $json
-	 * @throws Exception
-	 * @throws NoResultException
-	 */
-	public function dumpCommand($uuid, $json=false) {
-
-		if (strpos($uuid, '/') !== false) {
-			// it looks like a path
-			$uuid = $this->getPath($uuid);
-			if ($node = $this->context->getNode($uuid)) {
-				$uuid = $node->getIdentifier();
-			}
-		}
-
-		$nodeQuery = new NodeQuery();
-		$nodeQuery->addIdentifierConstraint($uuid);
-		try {
-			$result = $nodeQuery->getQuery()->getSingleResult(Query::HYDRATE_ARRAY);
-		} catch (NonUniqueResultException $e) {
-			throw new Exception('Non unique result');
-		}
-
-		echo json_encode($result, JSON_PRETTY_PRINT),"\n";
 	}
 
 	/**
