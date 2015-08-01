@@ -486,15 +486,22 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 	}
 
 	/**
-	 * Perform a node repair operation selectively, only for the specified NodeType
+	 * Perform a TYPO3CR node repair operation in the live workspace
 	 *
-	 * @param string $type NodeType Filter
+	 * The difference between calling this command and the typo3cr:node:repair is that this command
+	 * will skip the URI Path generation, which runs prior to the repair tasks and is problematic while
+	 * having too much nodes, because it doesn't scale well nor use the NodeType filter.
+	 *
+	 * @param string $nodeType Only handle this node type
+	 * @param boolean $dryRun Don't do any changes
+	 * @param boolean $cleanup Perform cleanup tasks
 	 */
-	public function repairCommand($type) {
+	public function repairCommand($nodeType='', $dryRun=false, $cleanup=false) {
 		/** @var NodeCommandControllerPlugin $plugin */
 		$plugin = $this->objectManager->get('TYPO3\TYPO3CR\Command\NodeCommandControllerPlugin');
-		$plugin->invokeSubCommand('repair', $this->output, $this->nodeTypeManager->getNodeType($type),
-			'live', false, false); // no dry run, no cleanups
+		$plugin->invokeSubCommand('repair', $this->output, $nodeType ?
+			$this->nodeTypeManager->getNodeType($nodeType) : null,
+			'live', $dryRun, $cleanup); // no dry run, no cleanups
 	}
 
 
