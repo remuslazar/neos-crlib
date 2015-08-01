@@ -119,10 +119,7 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 		$path = $path ? $this->getPath($path) : null;
 		$types = $this->getTypes($type);
 
-		$nodeQuery = new NodeQuery();
-
-		if ($path) $nodeQuery->addPathConstraint($path);
-		if ($types) $nodeQuery->addTypeConstraint($types);
+		$nodeQuery = new NodeQuery($types, $path);
 
 		$count = $nodeQuery->getCount();
 		if (!$count) {
@@ -213,10 +210,7 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 		$path = $path ? $this->getPath($path) : null;
 		$type = $this->getTypes($type, $useSubtypes);
 
-		$nodeQuery = new NodeQuery();
-
-		if ($path) $nodeQuery->addPathConstraint($path);
-		if ($type) $nodeQuery->addTypeConstraint($type);
+		$nodeQuery = new NodeQuery($type, $path);
 
 		if ($count) {
 			if ($property) {

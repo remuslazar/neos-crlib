@@ -10,6 +10,11 @@ namespace CRON\CRLib\Utility;
 use Doctrine\ORM\QueryBuilder;
 use TYPO3\Flow\Annotations as Flow;
 
+/**
+ * @property mixed|null initialTypeConstraint
+ * @property null|string initialPathConstraint
+ * @property null|string initialSearchTermConstraint
+ */
 class NodeQuery {
 	/**
 	 * Doctrine's Entity Manager. Note that "ObjectManager" is the name of the related
@@ -20,6 +25,21 @@ class NodeQuery {
 	 */
 	protected $entityManager;
 
+	/**
+	 * Convenience Constructor to initialize the object with some constraints
+	 *
+	 * @param mixed $nodeTypeFilter csv list of NodeTypes to filter
+	 * @param null|string $path filter by path
+	 * @param null|string $searchTerm search term
+	 *
+	 */
+	function __construct($nodeTypeFilter=null, $path=null, $searchTerm=null) {
+		// we save it as property to apply the constraints later in initializeObject()
+		$this->initialTypeConstraint = $nodeTypeFilter;
+		$this->initialPathConstraint = $path;
+		$this->initialSearchTermConstraint = $searchTerm;
+	}
+
 	/** @var QueryBuilder $queryBuilder */
 	public $queryBuilder;
 
@@ -29,6 +49,10 @@ class NodeQuery {
 		                   ->from('TYPO3\TYPO3CR\Domain\Model\NodeData', 'n')
 		                   ->where('n.workspace IN (:workspaces)')
 		                   ->setParameter('workspaces', 'live');
+
+		if ($this->initialPathConstraint) $this->addPathConstraint($this->initialPathConstraint);
+		if ($this->initialTypeConstraint) $this->addTypeConstraint($this->initialTypeConstraint);
+		if ($this->initialSearchTermConstraint) $this->addSearchTermConstraint($this->initialSearchTermConstraint);
 	}
 
 	/**
