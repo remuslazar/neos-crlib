@@ -157,6 +157,9 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 
 		// dry run to get the count of the records to import later on
 		$count = 0;
+		$documentCount=0;
+		$missingNodeTypes=[];
+
 		foreach ($iterator as $data) {
 			$nodePath = $data['path'];
 			if ($path && strpos($nodePath, $path) !== 0) continue;
@@ -168,12 +171,27 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 					$sitePath = $data['path'];
 					$this->outputLine('site: %s', [$sitePath]);
 				}
+				$nodeType = $data['nodeType'];
+				if ($this->nodeTypeManager->hasNodeType($nodeType)) {
+					$nodeType = $this->nodeTypeManager->getNodeType($nodeType);
+					if ($nodeType->isOfType('TYPO3.Neos:Document')) {
+						$documentCount++;
+					}
+				} else {
+					$missingNodeTypes[$nodeType] = true;
+				}
 			}
 			$count++;
 		}
 
+		$missingNodeTypes = array_flip($missingNodeTypes);
+
 		if ($info) {
-			$this->outputLine('%d records successfully validated for import.', [$count]);
+			if ($missingNodeTypes) {
+				$this->outputLine('WARN: missing NodeTypes: %s', [implode(',', $missingNodeTypes)]);
+			}
+			$this->outputLine('%d nodes (%d pages) available for import.', [
+				$count, $documentCount]);
 			$this->quit(0);
 		}
 
