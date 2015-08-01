@@ -213,23 +213,29 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 		$path = $path ? $this->getPath($path) : null;
 		$type = $this->getTypes($type, $useSubtypes);
 
+		$nodeQuery = new NodeQuery();
+
+		if ($path) $nodeQuery->addPathConstraint($path);
+		if ($type) $nodeQuery->addTypeConstraint($type);
+
 		if ($count) {
 			if ($property) {
 				// unfortunately we can't use the getCount() method here
 				$count = 0;
-				$iterable = $this->nodeQueryService->findQuery($type, $path)
-				                                   ->iterate(null,Query::HYDRATE_SCALAR);
+				$iterable = $nodeQuery->getQuery()->iterate(null,Query::HYDRATE_SCALAR);
 				foreach($iterable as $node) {
 					$node = $node[0];
 					if ($this->matchTermInProperty($node, $search, $property)) { $count++; }
 				}
 			} else {
-				$count = $this->nodeQueryService->getCount($type, $path, $search);
+				$nodeQuery->addSearchTermConstraint($search);
+				$count = $nodeQuery->getCount();
 			}
 
 			$this->outputLine('%d node(s).', [$count]);
 		} else {
-			$query = $this->nodeQueryService->findQuery($type, $path, $property ? null : $search);
+			if (!$property) $nodeQuery->addSearchTermConstraint($search);
+			$query = $nodeQuery->getQuery();
 
 			if ($limit !== null) $query->setMaxResults($limit);
 
