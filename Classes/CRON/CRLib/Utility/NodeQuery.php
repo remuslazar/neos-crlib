@@ -88,7 +88,13 @@ class NodeQuery {
 		                   ->setParameter('identifier', $identifier);
 	}
 
+	/**
+	 * Gets the Doctrine ORM Query, results ordered by path ASC
+	 *
+	 * @return \Doctrine\ORM\Query
+	 */
 	public function getQuery() {
+		$this->queryBuilder->orderBy('n.path', 'ASC');
 		return $this->queryBuilder->getQuery();
 	}
 
