@@ -108,4 +108,16 @@ class NodeQuery {
 		return $count;
 	}
 
+	/**
+	 * Delete all nodes matching the current criteria
+	 *
+	 * @return int number of nodes deleted
+	 */
+	public function deleteAll() {
+		$this->queryBuilder->delete();
+		$count = $this->queryBuilder->getQuery()->execute();
+		$this->queryBuilder->select('n');
+		return $count;
+	}
+
 }

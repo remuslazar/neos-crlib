@@ -15,6 +15,7 @@ use TYPO3\Flow\Annotations as Flow;
 use TYPO3\Flow\Object\ObjectManagerInterface;
 use TYPO3\Neos\Domain\Model\Site;
 use TYPO3\TYPO3CR\Command\NodeCommandControllerPlugin;
+use TYPO3\TYPO3CR\Domain\Model\NodeData;
 use TYPO3\TYPO3CR\Domain\Model\NodeInterface;
 use TYPO3\TYPO3CR\Domain\Service\Context;
 use TYPO3\TYPO3CR\Domain\Service\NodeTypeManager;
@@ -383,20 +384,6 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 	}
 
 	/**
-	 * Remove a single node and its child nodes
-	 *
-	 * This command will remove the node found in the given path and all its child nodes
-	 *
-	 * @param string $path relative to site root, e.g. /my/path/to/folder
-	 * @return void
-	 */
-	public function removeCommand($path) {
-		$path = $this->getPath($path);
-		$node = $this->context->getNode($path);
-		$this->removeAll([$node]);
-	}
-
-	/**
 	 * Remove all nodes below a given path
 	 *
 	 * This command will remove all nodes below a given path, dont care about workspaces etc.
@@ -407,41 +394,59 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 	 * /sites/dazsite/news/my-folder/my-page2
 	 * ..
 	 *
-	 * @param string $path relative to site root, e.g. /my/path/to/folder
-	 * @param string $nodeType filter by NodeType, e.g. Vendor.Name:MyNodeType or Document
+	 * @param string $path Match by path prefix (can be abs. or relative to the site root)
+	 * @param string $uuid Search by UUID (can be an UUID prefix)
 	 * @param bool $force force processing, don't list the nodes to be deleted
+	 * @param bool $childsOnly delete only the document child nodes and not the node itself
 	 * @return void
 	 */
-	public function removeAllCommand($path=NULL, $nodeType=NULL, $force=false) {
-		if ($path) { $path = $this->getPath($path); }
+	public function removeCommand($path='', $uuid='', $force=false, $childsOnly=false) {
+		if ($path) $path = $this->getPath($path);
 
-		$nodesToDelete = null;
-		if ($path && !$nodeType) {
-			$node = $this->context->getNode($path);
-			$nodesToDelete = $node->getChildNodes('TYPO3.Neos:Document');
-		} elseif ($nodeType) {
-			$nodesToDelete = $this->nodeDataRepository->findByParentAndNodeTypeInContext(
-				$path ? $path : $this->sitePath,
-				$nodeType,
-				$this->context,
-				TRUE
-			);
+		if (!$path && !$uuid) {
+			$this->outputLine('Either the --uuid OR --path argument is required.');
+			$this->quit(1);
 		}
 
-		if ($nodesToDelete) {
-			if ($force) {
-				$this->removeAll($nodesToDelete);
+		$nodeQuery = new NodeQuery();
+
+		if ($uuid) {
+			$nodeQuery->addIdentifierConstraint($uuid);
+			if ($nodeQuery->getCount() !== 1) {
+				$this->outputLine('No (unique) node with UUID %s found',[$uuid]);
+				$this->quit(1);
 			} else {
-				$this->outputLine();
-				$this->displayNodes($nodesToDelete);
-				$this->outputLine();
-				if ($this->output->askConfirmation(sprintf('Delete %d node(s) AND all child nodes? (y/n)', count($nodesToDelete)))) {
-					$this->removeAll($nodesToDelete);
-				}
+				/** @var NodeData $nodeData */
+				$nodeData = $nodeQuery->getQuery()->getSingleResult();
+				$path = $nodeData->getPath();
 			}
 		} else {
-			$this->outputLine('No nodes found.');
+			$nodeQuery->addPathConstraint($path);
+			if ($nodeQuery->getCount() === 0) {
+				$this->outputLine('No node on path %s found', [$path]);
+				$this->quit(1);
+			} elseif ($childsOnly && $nodeQuery->getCount() === 1) {
+				$this->outputLine('No document childnodes on path %s found', [$path]);
+				$this->quit(1);
+			}
 		}
+
+		if ($childsOnly) $path .= '/'; // hack
+
+		$documentNodesToDelete = new NodeQuery($this->getTypes('TYPO3.Neos:Document'), $path);
+
+		if ((($count=$documentNodesToDelete->getCount()) > 0) && !$force) {
+			foreach($documentNodesToDelete->getQuery()->iterate(null, Query::HYDRATE_SCALAR) as $result) {
+				$this->displayNodes([$result[0]]);
+			}
+			if (!$this->output->askConfirmation(sprintf('Delete %d documents(s) AND all child nodes? (y/n)', $count))) {
+				return;
+			}
+		}
+
+		$deleteQuery = new NodeQuery(null, $path);
+		$count = $deleteQuery->deleteAll();
+		$this->outputLine('%d node(s) bulk deleted.', [$count]);
 	}
 
 	/**
