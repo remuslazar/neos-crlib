@@ -14,6 +14,7 @@ use TYPO3\Flow\Annotations as Flow;
  * @property mixed|null initialTypeConstraint
  * @property null|string initialPathConstraint
  * @property null|string initialSearchTermConstraint
+ * @property string workspace
  */
 class NodeQuery {
 	/**
@@ -33,11 +34,12 @@ class NodeQuery {
 	 * @param null|string $searchTerm search term
 	 *
 	 */
-	function __construct($nodeTypeFilter=null, $path=null, $searchTerm=null) {
+	function __construct($nodeTypeFilter=null, $path=null, $searchTerm=null, $workspace='live') {
 		// we save it as property to apply the constraints later in initializeObject()
 		$this->initialTypeConstraint = $nodeTypeFilter;
 		$this->initialPathConstraint = $path;
 		$this->initialSearchTermConstraint = $searchTerm;
+		$this->workspace = $workspace;
 	}
 
 	/** @var QueryBuilder $queryBuilder */
@@ -48,7 +50,7 @@ class NodeQuery {
 		$this->queryBuilder->select('n')
 		                   ->from('TYPO3\TYPO3CR\Domain\Model\NodeData', 'n')
 		                   ->where('n.workspace IN (:workspaces)')
-		                   ->setParameter('workspaces', 'live');
+		                   ->setParameter('workspaces', $this->workspace);
 
 		if ($this->initialPathConstraint) $this->addPathConstraint($this->initialPathConstraint);
 		if ($this->initialTypeConstraint) $this->addTypeConstraint($this->initialTypeConstraint);
