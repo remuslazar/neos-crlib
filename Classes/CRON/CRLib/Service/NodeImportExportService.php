@@ -18,11 +18,13 @@ use TYPO3\Flow\Utility\Algorithms;
 /**
  *
  * @property ImportExportPropertyMappingConfiguration propertyMappingConfiguration
+ * @property int convertCount
  * @Flow\Scope("singleton")
  */
 class NodeImportExportService {
 
 	const RESOURCES_DIR = 'res';
+	const EXPORT_BATCH_SIZE = 200;
 
 	/**
 	 * @Flow\Inject
@@ -69,6 +71,12 @@ class NodeImportExportService {
 	public function initializeObject() {
 		$this->propertyMappingConfiguration = new ImportExportPropertyMappingConfiguration(self::RESOURCES_DIR);
 		if (!is_dir(self::RESOURCES_DIR)) mkdir(self::RESOURCES_DIR);
+		$this->convertCount = 0;
+	}
+
+	protected function clearState() {
+		$this->persistenceManager->persistAll();
+		$this->persistenceManager->clearState();
 	}
 
 	/**
@@ -165,6 +173,7 @@ class NodeImportExportService {
 	 * @return array processed node data
 	 */
 	public function convertNodeDataForExport(array $nodeData) {
+		if ($this->convertCount++ % self::EXPORT_BATCH_SIZE === 0) $this->clearState();
 		$data = [];
 		foreach ($nodeData as $key => $value) {
 			$newKey = substr($key, 2); // strip the n_ prefix
