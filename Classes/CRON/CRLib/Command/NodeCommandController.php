@@ -384,15 +384,7 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 	}
 
 	/**
-	 * Remove all nodes below a given path
-	 *
-	 * This command will remove all nodes below a given path, dont care about workspaces etc.
-	 * For example using the path /sites/dazsite/news/my-folder will delete the pages BELOW
-	 * this path, e.g.
-	 *
-	 * /sites/dazsite/news/my-folder/my-page1
-	 * /sites/dazsite/news/my-folder/my-page2
-	 * ..
+	 * Remove all nodes
 	 *
 	 * @param string $path Match by path prefix (can be abs. or relative to the site root)
 	 * @param string $uuid Search by UUID (can be an UUID prefix)
