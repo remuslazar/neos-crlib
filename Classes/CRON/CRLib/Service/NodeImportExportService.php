@@ -139,7 +139,8 @@ class NodeImportExportService {
 		$nodeData = [];
 		foreach ($data as $key => $value) {
 			if (is_array($value)) {
-				if (isset($value['date'])) {
+				if (array_key_exists('date', $value) &&
+					array_key_exists('timezone', $value) && is_string($value['date'])) {
 					$nodeData[$key] = new \DateTime($value['date'], new \DateTimeZone($value['timezone']));
 				} elseif (isset($value['__flow_object_type'])) {
 					$nodeData[$key] = $this->propertyMapper->convert(
