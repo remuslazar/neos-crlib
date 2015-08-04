@@ -9,6 +9,7 @@
 namespace CRON\CRLib\Utility;
 use Doctrine\ORM\QueryBuilder;
 use TYPO3\Flow\Annotations as Flow;
+use TYPO3\Flow\Utility\Unicode\Functions as Unicode;
 
 /**
  * @property mixed|null initialTypeConstraint
@@ -78,8 +79,15 @@ class NodeQuery {
 	 * @param string $term Search Term to search in properties using LIKE
 	 */
 	public function addSearchTermConstraint($term) {
+		// Convert to lowercase, then to json, and then trim quotes from json to have valid JSON escaping.
+		$likeParameter = '%' .
+			str_replace('\\', '\\\\', // escape all \
+				trim(
+					json_encode(Unicode::strtolower($term), JSON_UNESCAPED_UNICODE),
+					'"'
+				)) . '%';
 		$this->queryBuilder->andWhere('n.properties LIKE :term')
-		                   ->setParameter('term', '%'.$term.'%');
+		                   ->setParameter('term', $likeParameter);
 	}
 
 	/**
