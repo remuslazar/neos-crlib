@@ -101,7 +101,8 @@ class NodeIterator implements \Iterator {
 	 */
 	public function current() {
 
-		if ($this->iterator->key() % self::BATCH_SIZE === 0) {
+		$index = $this->iterator->key();
+		if ($index > 0 && $index % self::BATCH_SIZE === 0) {
 			$this->clearState();
 		}
 
