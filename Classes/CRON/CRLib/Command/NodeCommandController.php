@@ -148,17 +148,51 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 	}
 
 	/**
-	 * Import node data from a JSON file
+	 * Import node data from a JSON file.
+	 *
+	 * The default source path is the root path of the current site. Use a trailing slash to select only
+	 * the document child nodes of the path.
 	 *
 	 * @param string $filename JSON file on local filesystem
-	 * @param string $path limit the processing on that path only
-	 * @param bool $info dont process anything, show just some infos about the input data
+	 * @param string $path limit the processing on that path only (use only absolute paths, /sites/..).
+	 * @param string $destinationPath import the data on this path (defaults to --path, if set, else /)
+	 * @param bool $dir do list all the documents available in the backup
+	 * @param int $maxDepth the max. depth for the --dir command
 	 * @param boolean $dryRun perform a dry run
 	 */
-	public function importCommand($filename, $path=null, $info=false, $dryRun=false) {
+	public function importCommand($filename, $path='', $destinationPath='', $dir=false,
+	                              $maxDepth=0, $dryRun=false) {
+
+		if ($dryRun) {
+			$this->outputLine('!!! DRY RUN MODE');
+		}
+
+		$matchChildDocuments = false;
+		if (preg_match('/\/$/', $path)) {
+			$path = preg_replace('/\/$/','',$path);
+			$matchChildDocuments = true;
+		}
+
+		if (!$path) $path = $this->sitePath;
+		if (!$destinationPath) $destinationPath = $path;
+
 		$iterator = new JSONFileReader($filename);
 
-		if ($info) $dryRun = true;
+		if ($dir) {
+			foreach ($iterator as $data) {
+				$depth = substr_count($data['path'], '/');
+				if (!$maxDepth || $depth <= $maxDepth) {
+					if (isset($data['properties']['uriPathSegment'])) {
+						$this->outputLine('%s "%s"', [$data['path'], $data['properties']['title']]);
+					}
+				}
+			}
+			$this->quit(0);
+		}
+
+		$this->outputLine('Source path: %s', [$path]);
+		$this->outputLine('Destination path: %s', [$destinationPath]);
+
 
 		// dry run to get the count of the records to import later on
 		$count = 0;
@@ -166,56 +200,60 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 		$missingNodeTypes=[];
 
 		foreach ($iterator as $data) {
-			$nodePath = $data['path'];
-			if ($path && strpos($nodePath, $path) !== 0) continue;
-
-			if ($info) {
-				$sitePath = null;
-				$depth = substr_count($nodePath, '/');
-				if ($depth == 2) {
-					$sitePath = $data['path'];
-					$this->outputLine('site: %s', [$sitePath]);
+			if (!$this->nodeImportExportService->shouldImportRecord($data, $path, $matchChildDocuments)) continue;
+			$sitePath = null;
+			$depth = substr_count($data['path'], '/');
+			if ($depth == 2) {
+				$sitePath = $data['path'];
+				$this->outputLine('site: %s', [$sitePath]);
+			}
+			$nodeType = $data['nodeType'];
+			if ($this->nodeTypeManager->hasNodeType($nodeType)) {
+				$nodeType = $this->nodeTypeManager->getNodeType($nodeType);
+				if ($nodeType->isOfType('TYPO3.Neos:Document')) {
+					$documentCount++;
 				}
-				$nodeType = $data['nodeType'];
-				if ($this->nodeTypeManager->hasNodeType($nodeType)) {
-					$nodeType = $this->nodeTypeManager->getNodeType($nodeType);
-					if ($nodeType->isOfType('TYPO3.Neos:Document')) {
-						$documentCount++;
-					}
-				} else {
-					$missingNodeTypes[$nodeType] = true;
-				}
+			} else {
+				$missingNodeTypes[$nodeType] = true;
 			}
 			$count++;
 		}
 
 		$missingNodeTypes = array_flip($missingNodeTypes);
 
-		if ($info) {
-			if ($missingNodeTypes) {
-				$this->outputLine('WARN: missing NodeTypes: %s', [implode(',', $missingNodeTypes)]);
-			}
-			$this->outputLine('%d nodes (%d pages) available for import.', [
-				$count, $documentCount]);
-			$this->quit(0);
+		if ($missingNodeTypes) {
+			$this->outputLine('WARN: missing NodeTypes: %s', [implode(',', $missingNodeTypes)]);
 		}
+		// check if the import path exists
+		if (!$this->context->getNode($destinationPath)) {
+			$this->outputLine('ERROR: Destination path "%s" does not exist.', [$destinationPath]);
+			$this->quit(1);
+		}
+		$this->outputLine('%d nodes (%d pages) available for import.', [$count, $documentCount]);
 
-		$progress = $count > 1000; if ($progress) { $this->output->progressStart($count); $step = $count / 100; }
+		$progress = $count > 100; if ($progress) { $this->output->progressStart($count); $step = $count / 100; }
 
-		$i=0;
 		$importedCount=0;
+		$sourcePathLastPathSegmentWithLeadingSlash = $matchChildDocuments ? '' : substr($path, strrpos($path, '/'));
 		foreach ($iterator as $data) {
-			$nodePath = $data['path'];
-			if ($path && strpos($nodePath, $path) !== 0) continue;
-			if (!$dryRun) {
-				$parentPath = $data['parentPath'];
-				if ($parentPath && $parentPath != '/' && $parentPath != '/sites') {
-					$importedCount++;
-					$this->nodeImportExportService->processJSONRecord($data);
-				}
+			if (!$this->nodeImportExportService->shouldImportRecord($data, $path, $matchChildDocuments)) continue;
+
+			// map the path to dest path if needed
+			$data['path'] = str_replace($path,
+				$destinationPath . $sourcePathLastPathSegmentWithLeadingSlash, $data['path']);
+
+			try {
+				// do the import
+				if (!$dryRun) $this->nodeImportExportService->processJSONRecord($data);
+			} catch (\Exception $e) {
+				$this->outputLine();
+				$this->outputLine('WARNING: Record on path %s could not be imported.', [$data['path']]);
 			}
-			$i++; if ($progress && $i % $step === 0) $this->output->progressAdvance($step);
+
+			$importedCount++;
+			if ($progress && $importedCount % $step === 0) $this->output->progressAdvance($step);
 		}
+
 		if ($progress) {
 			$this->output->progressSet($count); $this->output->progressFinish();
 		} elseif ($importedCount) {

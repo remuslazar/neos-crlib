@@ -106,6 +106,10 @@ class NodeImportExportService {
 		$type = [];
 
 		$data['dimensionsHash'] = NodeData::sortDimensionValueArrayAndReturnDimensionsHash($data['dimensionValues']);
+
+		// calculate the parentPath
+		$data['parentPath'] = substr($data['path'], 0, strrpos($data['path'], '/'));
+
 		foreach ($data as $key => $value) {
 			// generate the path hash values
 			if (in_array($key, ['path','parentPath'])) {
@@ -189,6 +193,7 @@ class NodeImportExportService {
 			case 'n_pathHash':
 			case 'n_parentPathHash':
 			case 'n_dimensionsHash':
+			case 'n_parentPath':
 				break;
 
 			default:
@@ -240,6 +245,27 @@ class NodeImportExportService {
 			}
 		}
 		return $properties;
+	}
+
+	/**
+	 * Filter the records for the import process.
+	 *
+	 * @param array $data node data from the JSON
+	 * @param string $sourcePath source path constraint
+	 * @param bool $matchChildDocuments match only child documents (trailing /)
+	 *
+	 * @return bool record should be imported
+	 */
+	public function shouldImportRecord($data, $sourcePath, $matchChildDocuments) {
+		$path = $data['path'];
+		if ($matchChildDocuments) {
+			if (strpos($path . '/', $sourcePath) !== 0) return false;
+			$relativePath = substr($path, strlen($sourcePath)+1);
+			if (strpos($relativePath, '/') !== false) return true;
+			return !empty($data['properties']['uriPathSegment']);
+		} else {
+			return strpos($path, $sourcePath) === 0;
+		}
 	}
 
 }
