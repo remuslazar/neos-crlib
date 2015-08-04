@@ -11,6 +11,7 @@ use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Types\Type;
 use TYPO3\Flow\Persistence\Doctrine\DataTypes\JsonArrayType;
 use TYPO3\Flow\Annotations as Flow;
+use TYPO3\Media\Domain\Model\ImageVariant;
 use TYPO3\TYPO3CR\Domain\Model\NodeData;
 use TYPO3\TYPO3CR\Domain\Service\ImportExport\ImportExportPropertyMappingConfiguration;
 use TYPO3\Flow\Utility\Algorithms;
@@ -131,6 +132,31 @@ class NodeImportExportService {
 	}
 
 	/**
+	 * Checks if a propertyValue contains an entity and persists it.
+	 *
+	 * Method borrowed from NodeImportService
+	 *
+	 * @param mixed $propertyValue
+	 * @return void
+	 */
+	protected function persistEntities($propertyValue) {
+		if (!$propertyValue instanceof \Iterator && !is_array($propertyValue)) {
+			$propertyValue = array($propertyValue);
+		}
+		foreach ($propertyValue as $possibleEntity) {
+			if (is_object($possibleEntity) && $possibleEntity instanceof \TYPO3\Flow\Persistence\Aspect\PersistenceMagicInterface) {
+				$this->persistenceManager->isNewObject($possibleEntity) ? $this->persistenceManager->add($possibleEntity) : $this->persistenceManager->update($possibleEntity);
+
+				// TODO: Needed because the originalAsset will not cascade persist. We should find a generic solution to this.
+				if ($possibleEntity instanceof ImageVariant) {
+					$asset = $possibleEntity->getOriginalAsset();
+					$this->persistenceManager->isNewObject($asset) ? $this->persistenceManager->add($asset) : $this->persistenceManager->update($asset);
+				}
+			}
+		}
+	}
+
+	/**
 	 * @param array $data
 	 * @return array
 	 * @throws \Exception
@@ -152,6 +178,8 @@ class NodeImportExportService {
 						$value['__flow_object_type'],
 						$this->propertyMappingConfiguration
 					);
+					$this->persistEntities($nodeData[$key]);
+
 				} else {
 					// recurse
 					$nodeData[$key] = $this->convertJSONRecord($value);
