@@ -229,7 +229,7 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 			$this->outputLine('ERROR: Destination path "%s" does not exist.', [$destinationPath]);
 			$this->quit(1);
 		}
-		$this->outputLine('%d nodes (%d pages) available for import.', [$count, $documentCount]);
+		$this->outputLine('%d node(s) / %d document(s) selected for the import process.', [$count, $documentCount]);
 
 		$progress = $count > 100; if ($progress) { $this->output->progressStart($count); $step = $count / 100; }
 
