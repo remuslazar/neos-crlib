@@ -247,8 +247,10 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 				if (!$dryRun) $this->nodeImportExportService->processJSONRecord($data);
 			} catch (\Exception $e) {
 				$this->outputLine();
-				$this->outputLine('WARNING: Record on path %s could not be imported (%s)',
-					[$data['path']], $e->getMessage());
+				$this->outputLine('ERROR: Record on path %s could not be imported',
+					[$data['path']]);
+				$this->outputLine();
+				throw $e;
 			}
 
 			$importedCount++;
