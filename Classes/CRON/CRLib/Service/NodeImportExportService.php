@@ -99,6 +99,12 @@ class NodeImportExportService {
 		$connection->executeUpdate($statement, $data, $type);
 	}
 
+	/**
+	 * Process a single record from the JSON source file and import it
+	 *
+	 * @param array $json JSON input data for one single record (node)
+	 * @throws \Doctrine\DBAL\DBALException
+	 */
 	public function processJSONRecord($json) {
 		$connection = $this->entityManager->getConnection();
 
