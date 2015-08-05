@@ -159,6 +159,10 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 	 * @param bool $dir do list all the documents available in the backup
 	 * @param int $maxDepth the max. depth for the --dir command
 	 * @param boolean $dryRun perform a dry run
+	 *
+	 * @throws \Exception
+	 * @throws \TYPO3\Flow\Mvc\Exception\StopActionException
+	 * @throws \TYPO3\TYPO3CR\Exception\NodeTypeNotFoundException
 	 */
 	public function importCommand($filename, $path='', $destinationPath='', $dir=false,
 	                              $maxDepth=0, $dryRun=false) {
@@ -167,6 +171,7 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 			$this->outputLine('!!! DRY RUN MODE');
 		}
 
+		// we match only child documents if the source path has a trailing /
 		$matchChildDocuments = false;
 		if (preg_match('/\/$/', $path)) {
 			$path = preg_replace('/\/$/','',$path);
@@ -193,7 +198,6 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 		$this->outputLine('Source path: %s', [$path]);
 		$this->outputLine('Destination path: %s', [$destinationPath]);
 
-
 		// dry run to get the count of the records to import later on
 		$count = 0;
 		$documentCount=0;
@@ -205,7 +209,7 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 			$depth = substr_count($data['path'], '/');
 			if ($depth == 2) {
 				$sitePath = $data['path'];
-				$this->outputLine('site: %s', [$sitePath]);
+				$this->outputLine('Site: %s', [$sitePath]);
 			}
 			$nodeType = $data['nodeType'];
 			if ($this->nodeTypeManager->hasNodeType($nodeType)) {
@@ -219,11 +223,15 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 			$count++;
 		}
 
-		$missingNodeTypes = array_flip($missingNodeTypes);
+		$missingNodeTypes = array_keys($missingNodeTypes);
 
 		if ($missingNodeTypes) {
-			$this->outputLine('WARN: missing NodeTypes: %s', [implode(',', $missingNodeTypes)]);
+			$this->outputLine('WARNING: missing NodeTypes:');
+			foreach ($missingNodeTypes as $missingNodeType) {
+				$this->outputLine(' * %s', [$missingNodeType]);
+			}
 		}
+
 		// check if the import path exists
 		if (!$this->context->getNode($destinationPath)) {
 			$this->outputLine('ERROR: Destination path "%s" does not exist.', [$destinationPath]);
