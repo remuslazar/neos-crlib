@@ -293,7 +293,7 @@ class NodeImportExportService {
 	public function shouldImportRecord($data, $sourcePath, $matchChildDocuments) {
 		$path = $data['path'];
 		if ($matchChildDocuments) {
-			if (strpos($path . '/', $sourcePath) !== 0) return false;
+			if (strpos($path, $sourcePath.'/') !== 0) return false;
 			$relativePath = substr($path, strlen($sourcePath)+1);
 			if (strpos($relativePath, '/') !== false) return true;
 			return !empty($data['properties']['uriPathSegment']);
