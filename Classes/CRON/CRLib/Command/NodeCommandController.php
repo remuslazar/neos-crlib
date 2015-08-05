@@ -131,7 +131,7 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 			$this->quit(1);
 		}
 
-		$fp = null; if ($filename) { $fp = fopen($filename, 'w'); }
+		$fp = null; if ($filename) { $fp = fopen($filename, 'w'); chdir(dirname($filename)); }
 
 		$progress = $fp && ($count > 1000); if ($progress) { $this->output->progressStart($count); $step = $count / 100; }
 
@@ -159,13 +159,14 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 	 * @param bool $dir do list all the documents available in the backup
 	 * @param int $maxDepth the max. depth for the --dir command
 	 * @param boolean $dryRun perform a dry run
+	 * @param bool $yes Skip the confirmation step prior to the import process
 	 *
 	 * @throws \Exception
 	 * @throws \TYPO3\Flow\Mvc\Exception\StopActionException
 	 * @throws \TYPO3\TYPO3CR\Exception\NodeTypeNotFoundException
 	 */
 	public function importCommand($filename, $path='', $destinationPath='', $dir=false,
-	                              $maxDepth=0, $dryRun=false) {
+	                              $maxDepth=0, $dryRun=false, $yes=false) {
 
 		if ($dryRun) {
 			$this->outputLine('!!! DRY RUN MODE');
@@ -182,9 +183,11 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 		if (!$destinationPath) $destinationPath = $path;
 
 		$iterator = new JSONFileReader($filename);
+		chdir(dirname($filename));
 
 		if ($dir) {
 			foreach ($iterator as $data) {
+				if (!$this->nodeImportExportService->shouldImportRecord($data, $path, $matchChildDocuments)) continue;
 				$depth = substr_count($data['path'], '/');
 				if (!$maxDepth || $depth <= $maxDepth) {
 					if (isset($data['properties']['uriPathSegment'])) {
@@ -195,7 +198,7 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 			$this->quit(0);
 		}
 
-		$this->outputLine('Source path: %s', [$path]);
+		$this->outputLine('Source path: %s', [$path . ($matchChildDocuments ? '/*' : '')]);
 		$this->outputLine('Destination path: %s', [$destinationPath]);
 
 		// dry run to get the count of the records to import later on
@@ -238,6 +241,10 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 			$this->quit(1);
 		}
 		$this->outputLine('%d node(s) / %d document(s) selected for the import process.', [$count, $documentCount]);
+
+		if (!$yes && !$this->output->askConfirmation('Proceed with the import process?')) {
+			$this->quit(0);
+		}
 
 		$progress = $count > 100; if ($progress) { $this->output->progressStart($count); $step = $count / 100; }
 
