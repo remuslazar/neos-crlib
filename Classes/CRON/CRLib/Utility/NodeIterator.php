@@ -17,6 +17,7 @@ use TYPO3\TYPO3CR\Domain\Service\Context;
  * @property Context context
  * @property \Doctrine\ORM\Query query
  * @property \Doctrine\ORM\Internal\Hydration\IterableResult iterator
+ * @property bool performClearState
  */
 class NodeIterator implements \Iterator {
 
@@ -51,8 +52,9 @@ class NodeIterator implements \Iterator {
 	/**
 	 * @param Query $query The Query object
 	 * @param array $contextOptions Options for the contextFactory::create() method
+	 * @param bool $clearState perform a persistenceManager->clearState() call after BATCH_SIZE
 	 */
-	function __construct(Query $query, $contextOptions=null) {
+	function __construct(Query $query, $contextOptions=null, $clearState=true) {
 		$this->contextOptions = $contextOptions ? $contextOptions : [
 			// use some viable defaults
 			'invisibleContentShown' => TRUE,
@@ -61,6 +63,7 @@ class NodeIterator implements \Iterator {
 		$query->useResultCache(false);
 		$query->useQueryCache(false);
 		$this->query = $query;
+		$this->performClearState = $clearState;
 	}
 
 	public function initializeObject() {
@@ -71,15 +74,17 @@ class NodeIterator implements \Iterator {
 	public function clearState() {
 		$this->persistenceManager->persistAll();
 		$this->nodeDataRepository->flushNodeRegistry();
-		$this->context = NULL;
 		/** @var Context $context */
 		foreach ($this->contextFactory->getInstances() as $context) {
 			$context->getFirstLevelNodeCache()->flush();
 		}
 		$this->contextFactory->reset();
 		$this->nodeFactory->reset();
-		$this->persistenceManager->clearState();
-		$this->context = $this->contextFactory->create($this->contextOptions);
+
+		if ($this->performClearState) {
+			$this->persistenceManager->clearState();
+			$this->context = $this->contextFactory->create($this->contextOptions);
+		}
 	}
 
 	/**
