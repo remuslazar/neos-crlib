@@ -8,11 +8,13 @@ namespace CRON\CRLib\Command;
 
 use CRON\CRLib\Utility\JSONArrayWriter;
 use CRON\CRLib\Utility\JSONFileReader;
+use CRON\CRLib\Utility\NodeIterator;
 use CRON\CRLib\Utility\NodeQuery;
 use Doctrine\ORM\EntityManager;
 use Doctrine\ORM\Query;
 use TYPO3\Flow\Annotations as Flow;
 use TYPO3\Flow\Object\ObjectManagerInterface;
+use TYPO3\Media\Domain\Model\ImageVariant;
 use TYPO3\Neos\Domain\Model\Site;
 use TYPO3\TYPO3CR\Command\NodeCommandControllerPlugin;
 use TYPO3\TYPO3CR\Domain\Model\NodeData;
@@ -557,5 +559,44 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 			'live', $dryRun, $cleanup);
 	}
 
+	/**
+	 * Cleanup for TYPO3CR nodes
+	 *
+	 * Currently this command checks only if all the assets are available and delete all orphaned assets.
+	 *
+	 * @param string $path limit to this path only
+	 * @param string $type NodeType filter (csv list)
+	 * @param boolean $dryRun
+	 */
+	public function cleanupCommand($path=null, $type=null, $dryRun=false) {
+		$path = $path ? $this->getPath($path) : null;
+		$type = $this->getTypes($type);
+
+		$nodeQuery = new NodeQuery($type, $path);
+		$count = $nodeQuery->getCount();
+
+		$this->output->progressStart($count);
+
+		foreach (new NodeIterator($nodeQuery->getQuery()) as $node) {
+			foreach($node->getProperties() as $name => $property) {
+				try {
+					if ($property instanceof ImageVariant) {
+						// this will fail if the resource is orphaned
+						$property->getIdentifier();
+					}
+				} catch (\Exception $e) {
+					if ($dryRun) {
+						$this->outputLine('Property %s in Node %s references a missing ImageVariant record.',
+							[$name, $node]);
+					} else {
+						$node->removeProperty($name); // nullify the property to fix
+					}
+				}
+			}
+			$this->output->progressAdvance();
+		}
+
+		$this->output->progressFinish();
+	}
 
 }
