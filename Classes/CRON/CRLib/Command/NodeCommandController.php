@@ -15,8 +15,6 @@ use Doctrine\ORM\Query;
 use TYPO3\Flow\Annotations as Flow;
 use TYPO3\Flow\Object\ObjectManagerInterface;
 use TYPO3\Media\Domain\Model\Asset;
-use TYPO3\Media\Domain\Model\Image;
-use TYPO3\Media\Domain\Model\ImageVariant;
 use TYPO3\Neos\Domain\Model\Site;
 use TYPO3\TYPO3CR\Command\NodeCommandControllerPlugin;
 use TYPO3\TYPO3CR\Domain\Model\NodeData;
@@ -589,7 +587,7 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 				} catch (\Exception $e) {
 					if ($dryRun) {
 						$this->outputLine('Property %s in %s references a missing %s record.',
-							[$name, $node, get_class($property)]);
+							[$name, $node, \Doctrine\Common\Util\ClassUtils::getRealClass(get_class($property))]);
 					} else {
 						$node->removeProperty($name); // nullify the property to fix
 					}
