@@ -14,6 +14,8 @@ use Doctrine\ORM\EntityManager;
 use Doctrine\ORM\Query;
 use TYPO3\Flow\Annotations as Flow;
 use TYPO3\Flow\Object\ObjectManagerInterface;
+use TYPO3\Media\Domain\Model\Asset;
+use TYPO3\Media\Domain\Model\Image;
 use TYPO3\Media\Domain\Model\ImageVariant;
 use TYPO3\Neos\Domain\Model\Site;
 use TYPO3\TYPO3CR\Command\NodeCommandControllerPlugin;
@@ -580,14 +582,14 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 		foreach (new NodeIterator($nodeQuery->getQuery()) as $node) {
 			foreach($node->getProperties() as $name => $property) {
 				try {
-					if ($property instanceof ImageVariant) {
-						// this will fail if the resource is orphaned
+					if ($property instanceof Asset) {
+						// this will fail if the asset is orphaned
 						$property->getIdentifier();
 					}
 				} catch (\Exception $e) {
 					if ($dryRun) {
-						$this->outputLine('Property %s in Node %s references a missing ImageVariant record.',
-							[$name, $node]);
+						$this->outputLine('Property %s in %s references a missing %s record.',
+							[$name, $node, get_class($property)]);
 					} else {
 						$node->removeProperty($name); // nullify the property to fix
 					}
