@@ -20,6 +20,7 @@ use TYPO3\TYPO3CR\Command\NodeCommandControllerPlugin;
 use TYPO3\TYPO3CR\Domain\Model\NodeData;
 use TYPO3\TYPO3CR\Domain\Model\NodeInterface;
 use TYPO3\TYPO3CR\Domain\Service\Context;
+use TYPO3\TYPO3CR\Domain\Service\NodeService;
 use TYPO3\TYPO3CR\Domain\Service\NodeTypeManager;
 
 /**
@@ -37,9 +38,9 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 
 	/**
 	 * @Flow\Inject
-	 * @var \TYPO3\Neos\Service\NodeNameGenerator
+	 * @var NodeService
 	 */
-	protected $nodeNameGenerator;
+	protected $nodeService;
 
 	/**
 	 * @Flow\Inject
@@ -531,7 +532,7 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 		$folderNode = $this->context->getNode($path);
 
 		$newNode = $folderNode->createNode(
-			$this->nodeNameGenerator->generateUniqueNodeName($folderNode, $title),
+			$this->nodeService->generateUniqueNodeName($folderNode->getPath(), $title),
 			$nodeType,
 			$uuid
 		);
