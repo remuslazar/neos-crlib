@@ -599,4 +599,27 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 		$this->output->progressFinish();
 	}
 
+	/**
+	 * Move the node tree from src to dst
+	 *
+	 * @param string $src source path
+	 * @param string $dst destination path
+	 */
+	public function moveCommand($src, $dst) {
+		$sourcePath = $this->getPath($src);
+		$destinationPath = $this->getPath($dst);
+
+		$sourceNode = $this->context->getNode($sourcePath);
+		if (!$sourceNode) {
+			$this->outputLine('ERROR: Invalid source path %s', [$sourcePath]);
+			$this->quit(1);
+		}
+		$destinationNode = $this->context->getNode($destinationPath);
+		if (!$destinationNode) {
+			$this->outputLine('ERROR: Invalid destination path %s', [$destinationPath]);
+			$this->quit(1);
+		}
+		$sourceNode->moveInto($destinationNode);
+	}
+
 }
