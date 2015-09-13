@@ -521,8 +521,8 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 	 *
 	 * @param string $title The node title (the node name will be derived from it)
 	 * @param string $path The (folder) path, relative to the current site root
-	 * @param null $type Node Type, defaults to TYPO3.Neos.NodeTypes:Page
-	 * @param null $uuid UUID of the new node, e.g. 22f90a17-9adc-2462-2971-bdb5eaf170b7
+	 * @param string $type Node Type, defaults to TYPO3.Neos.NodeTypes:Page
+	 * @param string $uuid UUID of the new node, e.g. 22f90a17-9adc-2462-2971-bdb5eaf170b7
 	 */
 	public function createCommand($title, $path, $type=null, $uuid=null) {
 		$path = $this->getPath($path);
