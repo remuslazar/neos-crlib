@@ -21,6 +21,7 @@ use TYPO3\TYPO3CR\Domain\Model\NodeData;
 use TYPO3\TYPO3CR\Domain\Model\NodeInterface;
 use TYPO3\TYPO3CR\Domain\Service\Context;
 use TYPO3\TYPO3CR\Domain\Service\NodeTypeManager;
+use TYPO3\TYPO3CR\Migration\Transformations\AbstractTransformation;
 
 /**
  * @property Context context
@@ -620,6 +621,41 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 			$this->quit(1);
 		}
 		$sourceNode->moveInto($destinationNode);
+	}
+
+	/**
+	 * Perform a (simple) migration
+	 *
+	 * This is an alternative to the typo3cr:node:migrate command, designed for scalability and performance
+	 * when dealing with big sites.
+	 *
+	 * @param string $type NodeType, e.g. VENDOR.Site:MyNodeType
+	 * @param string $property PropertyName, e.g. date
+	 * @param string $class Transformation class name, e.g. VENDOR\Site\Migration\Transformations\MyTransformation
+	 */
+	public function simplemigrateCommand($type, $property, $class) {
+		$migration = $this->objectManager->get($class);
+
+		if (!$migration instanceof AbstractTransformation) {
+			$this->outputLine('ERROR: PHP-Class %s could not be loaded.', [$class]);
+			$this->quit(1);
+		}
+
+		$migration->property = $property;
+
+		$nodeQuery = new NodeQuery($type);
+		$this->output->progressStart($nodeQuery->getCount());
+		foreach ( (new NodeIterator($nodeQuery->getQuery(), [], false)) as $node) {
+			$nodeData = $node->getNodeData();
+			if ($migration->isTransformable($nodeData)) {
+				$migration->execute($nodeData);
+				if (!$this->nodeDataRepository->isInRemovedNodes($nodeData)) {
+					$this->nodeDataRepository->update($nodeData);
+				}
+			}
+			$this->output->progressAdvance();
+		}
+		$this->output->progressFinish();
 	}
 
 }
