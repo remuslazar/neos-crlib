@@ -21,7 +21,6 @@ use TYPO3\TYPO3CR\Domain\Model\NodeData;
 use TYPO3\TYPO3CR\Domain\Model\NodeInterface;
 use TYPO3\TYPO3CR\Domain\Service\Context;
 use TYPO3\TYPO3CR\Domain\Service\NodeTypeManager;
-use TYPO3\TYPO3CR\Migration\Transformations\AbstractTransformation;
 
 /**
  * @property Context context
@@ -636,8 +635,8 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 	public function simplemigrateCommand($type, $property, $class) {
 		$migration = $this->objectManager->get($class);
 
-		if (!$migration instanceof AbstractTransformation) {
-			$this->outputLine('ERROR: PHP-Class %s could not be loaded.', [$class]);
+		if (!$migration instanceof \TYPO3\TYPO3CR\Migration\Transformations\AbstractTransformation) {
+			$this->outputLine('ERROR: PHP-Class %s must be an instance of \TYPO3\TYPO3CR\Migration\Transformations\AbstractTransformation.', [$class]);
 			$this->quit(1);
 		}
 
