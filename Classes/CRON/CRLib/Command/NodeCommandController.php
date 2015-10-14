@@ -305,14 +305,14 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 	 * @param bool $count Display only the count and not the record data itself
 	 * @param bool $json Output data JSON formatted (one record per line)
 	 * @param bool $map Perform properties mapping and export resources in the res folder
-	 * @param string $workspace workspace, defaults to live
+	 * @param string $workspace workspace, defaults to live. Use the keyword 'all' to query ALL workspaces
 	 */
 	public function findCommand($uuid='', $path=null, $type=null, $useSubtypes=true, $search='', $property='',
 	                            $limit = NULL, $count = FALSE, $json = FALSE, $map = FALSE, $workspace = 'live') {
 		$path = $path ? $this->getPath($path) : null;
 		$type = $this->getTypes($type, $useSubtypes);
 
-		$nodeQuery = new NodeQuery($type, $path, NULL, $workspace);
+		$nodeQuery = new NodeQuery($type, $path, NULL, $workspace !== 'all' ? $workspace : NULL);
 
 		if ($uuid) $nodeQuery->addIdentifierConstraint($uuid);
 

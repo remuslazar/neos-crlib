@@ -50,9 +50,15 @@ class NodeQuery {
 	public function initializeObject() {
 		$this->queryBuilder = $this->entityManager->createQueryBuilder();
 		$this->queryBuilder->select('n')
-		                   ->from('TYPO3\TYPO3CR\Domain\Model\NodeData', 'n')
-		                   ->where('n.workspace IN (:workspaces)')
-		                   ->setParameter('workspaces', $this->workspace);
+			->from('TYPO3\TYPO3CR\Domain\Model\NodeData', 'n')
+		;
+
+		if (!empty($this->workspace)) {
+			$this->queryBuilder
+				->where('n.workspace IN (:workspaces)')
+				->setParameter('workspaces', $this->workspace)
+			;
+		}
 
 		if ($this->initialPathConstraint) $this->addPathConstraint($this->initialPathConstraint);
 		if ($this->initialTypeConstraint) $this->addTypeConstraint($this->initialTypeConstraint);
