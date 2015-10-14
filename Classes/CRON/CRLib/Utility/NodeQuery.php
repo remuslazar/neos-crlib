@@ -33,6 +33,7 @@ class NodeQuery {
 	 * @param mixed $nodeTypeFilter csv list of NodeTypes to filter
 	 * @param null|string $path filter by path
 	 * @param null|string $searchTerm search term
+	 * @param string $workspace workspace
 	 *
 	 */
 	function __construct($nodeTypeFilter=null, $path=null, $searchTerm=null, $workspace='live') {
