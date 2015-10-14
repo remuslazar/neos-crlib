@@ -308,11 +308,11 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 	 * @param string $workspace workspace, defaults to live. Use the keyword 'all' to query ALL workspaces
 	 */
 	public function findCommand($uuid='', $path=null, $type=null, $useSubtypes=true, $search='', $property='',
-	                            $limit = NULL, $count = FALSE, $json = FALSE, $map = FALSE, $workspace = 'live') {
+	                            $limit=null, $count=false, $json=false, $map=false, $workspace='live') {
 		$path = $path ? $this->getPath($path) : null;
 		$type = $this->getTypes($type, $useSubtypes);
 
-		$nodeQuery = new NodeQuery($type, $path, NULL, $workspace !== 'all' ? $workspace : NULL);
+		$nodeQuery = new NodeQuery($type, $path, null, $workspace !== 'all' ? $workspace : null);
 
 		if ($uuid) $nodeQuery->addIdentifierConstraint($uuid);
 
