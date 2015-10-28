@@ -561,6 +561,46 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 	}
 
 	/**
+	 * Set all default values for the specified node type
+	 *
+	 * This is an alternative method to typo3cr:node:repair command, being more efficient
+	 * and scalable.
+	 *
+	 * @param string $path limit to this path only
+	 * @param string $type NodeType Filter
+	 * @param boolean $dryRun
+	 * @param string $force property name DANGER ZONE: this option will basically overwrite(!) existing values with the defaults for the selected property
+	 *
+	 */
+	public function setDefaultsCommand($path = null, $type = null, $dryRun = false, $force=null) {
+		$path = $path ? $this->getPath($path) : null;
+		$type = $this->getTypes($type);
+
+		$nodeQuery = new NodeQuery($type, $path);
+		$totalCount = $nodeQuery->getCount();
+		if (!$dryRun) $this->output->progressStart($totalCount);
+
+		foreach (new NodeIterator($nodeQuery->getQuery(),null, true) as $node) {
+			$nodeType = $node->getNodeType();
+			foreach ($nodeType->getDefaultValuesForProperties() as $propertyName => $defaultValue) {
+				if ($force === $propertyName || !$node->hasProperty($propertyName)) {
+					if ($dryRun) {
+						$this->outputLine('will set %s=%s for %s', [
+							$propertyName,
+							json_encode($defaultValue),
+							$node
+						]);
+					} else {
+						$node->setProperty($propertyName, $defaultValue);
+					}
+				}
+			}
+			if (!$dryRun) $this->output->progressAdvance();
+		}
+		if (!$dryRun) $this->output->progressFinish();
+	}
+
+	/**
 	 * Cleanup for TYPO3CR nodes
 	 *
 	 * Currently this command checks only if all the assets are available and delete all orphaned assets.
