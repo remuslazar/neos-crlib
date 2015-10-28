@@ -580,7 +580,7 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 		$totalCount = $nodeQuery->getCount();
 		if (!$dryRun) $this->output->progressStart($totalCount);
 
-		foreach (new NodeIterator($nodeQuery->getQuery(),null, true) as $node) {
+		foreach (new NodeIterator($nodeQuery->getQuery(), null, false) as $node) {
 			$nodeType = $node->getNodeType();
 			foreach ($nodeType->getDefaultValuesForProperties() as $propertyName => $defaultValue) {
 				if ($force === $propertyName || !$node->hasProperty($propertyName)) {
