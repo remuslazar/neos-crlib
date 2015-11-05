@@ -608,15 +608,16 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 	 * @param string $path limit to this path only
 	 * @param string $type NodeType filter (csv list)
 	 * @param boolean $dryRun
+	 * @param boolean $quiet quiet operation, for unattended usage (no progress)
 	 */
-	public function cleanupCommand($path=null, $type=null, $dryRun=false) {
+	public function cleanupCommand($path=null, $type=null, $dryRun=false, $quiet=false) {
 		$path = $path ? $this->getPath($path) : null;
 		$type = $this->getTypes($type);
 
 		$nodeQuery = new NodeQuery($type, $path);
 		$count = $nodeQuery->getCount();
 
-		$this->output->progressStart($count);
+		if (!$quiet) $this->output->progressStart($count);
 
 		foreach (new NodeIterator($nodeQuery->getQuery()) as $node) {
 			foreach($node->getProperties() as $name => $property) {
@@ -634,10 +635,10 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 					}
 				}
 			}
-			$this->output->progressAdvance();
+			if (!$quiet) $this->output->progressAdvance();
 		}
 
-		$this->output->progressFinish();
+		if (!$quiet) $this->output->progressFinish();
 	}
 
 	/**
