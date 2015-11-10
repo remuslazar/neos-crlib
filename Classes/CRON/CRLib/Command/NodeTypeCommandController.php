@@ -22,12 +22,14 @@ class NodeTypeCommandController extends \TYPO3\Flow\Cli\CommandController {
 	 */
 	protected $nodeTypeManager;
 
-	private function getConstraints(NodeType $nodeType, $inherited=false) {
-		$constraints = $nodeType->getConfiguration('constraints.nodeTypes');
+	private function getConstraints(NodeType $nodeType, $inherited=false, $childNode) {
+		// prepend the childNodes.NAME. path if childNode given
+		$configurationPath = ($childNode ? 'childNodes.'.$childNode.'.' : '') . 'constraints.nodeTypes';
+		$constraints = $nodeType->getConfiguration($configurationPath);
 		if ($inherited) {
 			/** @var NodeType $super */
 			foreach($nodeType->getDeclaredSuperTypes() as $super) {
-				if ($superConstraints = $super->getConfiguration('constraints.nodeTypes')) {
+				if ($superConstraints = $super->getConfiguration($configurationPath)) {
 					$constraints = array_merge($constraints, $superConstraints);
 				}
 			}
@@ -42,11 +44,12 @@ class NodeTypeCommandController extends \TYPO3\Flow\Cli\CommandController {
 	 *
 	 * @param string $nodeType
 	 * @param boolean $detail show detailed information about the inheritance
+	 * @param string $childNode show constraints for this child node, e.g. main
 	 *
 	 * @throws \TYPO3\Flow\Mvc\Exception\StopActionException
 	 * @throws \TYPO3\TYPO3CR\Exception\NodeTypeNotFoundException
 	 */
-	public function showConstraintsCommand($nodeType=null, $detail=false) {
+	public function showConstraintsCommand($nodeType=null, $detail=false, $childNode='') {
 
 		if ($nodeType !== null && !$this->nodeTypeManager->hasNodeType($nodeType)) {
 			$this->outputLine('NodeType: %s not found.', [$nodeType]);
@@ -61,15 +64,15 @@ class NodeTypeCommandController extends \TYPO3\Flow\Cli\CommandController {
 		/** @var NodeType $nodeType */
 		foreach ($nodeTypes as $nodeType) {
 			if ($detail) {
-				$ret[$nodeType->getName()] = $this->getConstraints($nodeType, false);
+				$ret[$nodeType->getName()] = $this->getConstraints($nodeType, false, $childNode);
 				foreach($nodeType->getDeclaredSuperTypes() as $super) {
-					if ($superConstraints =  $this->getConstraints($super, false)) {
+					if ($superConstraints =  $this->getConstraints($super, false, $childNode)) {
 						/** @var NodeType $super */
 						$ret['superTypes'][$super->getName()] = $superConstraints;
 					}
 				}
 			} else {
-				$ret[$nodeType->getName()] = $this->getConstraints($nodeType, true);
+				$ret[$nodeType->getName()] = $this->getConstraints($nodeType, true, $childNode);
 			}
 		}
 
