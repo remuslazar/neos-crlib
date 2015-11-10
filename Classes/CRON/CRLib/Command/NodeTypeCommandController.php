@@ -134,4 +134,53 @@ class NodeTypeCommandController extends \TYPO3\Flow\Cli\CommandController {
 		echo json_encode($parents, JSON_PRETTY_PRINT) . PHP_EOL;
 	}
 
+	private function printJSON($data) {
+		echo json_encode($data, JSON_PRETTY_PRINT) . PHP_EOL;
+	}
+
+	private function printYAML($data) {
+		// don't inline stuff, use 2 spaces for indenting
+		echo \Symfony\Component\Yaml\Yaml::dump($data,8,2);
+	}
+
+	/**
+	 * Show all allowed childnodes for a specific NodeType
+	 *
+	 * Basically this will use the same logic as the NEOS Backend in the "Create New" dialog. The output
+	 * is YAML formatted, suitable for being copied-and-pasted onto the NodeTypes.yaml file, do disable
+	 * specific items.
+	 *
+	 * @param string $nodeType
+	 * @param string $childNode e.g. 'main', leave empty to get the constraints for the document node
+	 */
+	public function showAllowedChildnodesCommand($nodeType, $childNode='') {
+		$ret = [];
+
+		$nodeType = $this->getNodeType($nodeType);
+
+		foreach ($this->nodeTypeManager->getNodeTypes() as $possibleNodeType) {
+			/** @var NodeType $possibleNodeType */
+			if ( ($childNode && $nodeType->allowsGrandchildNodeType($childNode, $possibleNodeType) ) ||
+				(!$childNode && $nodeType->allowsChildNodeType($possibleNodeType)) ) {
+				$ret[$possibleNodeType->getName()] = false;
+			}
+		}
+
+		$this->printYAML([
+			$nodeType->getName() => $childNode ? [
+				'childNodes' => [
+					$childNode => [
+						'constraints' => [
+							'nodeTypes' => $ret
+						]
+					]
+				]
+			] : [
+				'constraints' => [
+					'nodeTypes' => $ret
+				]
+			]
+		]);
+	}
+
 }
