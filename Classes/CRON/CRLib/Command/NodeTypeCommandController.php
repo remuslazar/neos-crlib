@@ -22,62 +22,116 @@ class NodeTypeCommandController extends \TYPO3\Flow\Cli\CommandController {
 	 */
 	protected $nodeTypeManager;
 
-	private function getConstraints(NodeType $nodeType, $inherited=false, $childNode) {
+	/**
+	 * Check for invalid NodeTypes in NodeTypes.*.yaml constraints
+	 *
+	 * @param string $childNode
+	 *
+	 */
+	public function checkConstraintsCommand($childNode='') {
+		$ret = [];
+		foreach($this->nodeTypeManager->getNodeTypes() as $nodeType) {
+			$constraints = $this->getConstraints($nodeType, $childNode);
+			if (!$constraints) continue;
+
+			$invalidNodeNames = [];
+			foreach (array_keys($constraints) as $nodeTypeName) {
+				if ($nodeTypeName == '*') continue;
+
+				if (!$this->nodeTypeManager->hasNodeType($nodeTypeName)) {
+					$invalidNodeNames[] = $nodeTypeName;
+				}
+			}
+			if ($invalidNodeNames) {
+				$ret[$nodeType->getName()] = $invalidNodeNames;
+			}
+		}
+
+		echo json_encode($ret, JSON_PRETTY_PRINT) . PHP_EOL;
+	}
+
+	private function getConstraints(NodeType $nodeType, $childNode='', &$superTypes = []) {
 		// prepend the childNodes.NAME. path if childNode given
 		$configurationPath = ($childNode ? 'childNodes.'.$childNode.'.' : '') . 'constraints.nodeTypes';
 		$constraints = $nodeType->getConfiguration($configurationPath);
-		if ($inherited) {
-			/** @var NodeType $super */
-			foreach($nodeType->getDeclaredSuperTypes() as $super) {
-				if ($superConstraints = $super->getConfiguration($configurationPath)) {
-					$constraints = array_merge($constraints, $superConstraints);
-				}
+		$superTypes[] = $nodeType->getName();
+
+		/** @var NodeType $super */
+		foreach($nodeType->getDeclaredSuperTypes() as $super) {
+			if (in_array($super->getName(), $superTypes)) continue; // prevent loops
+			if ($childConstraints = $this->getConstraints($super, $childNode, $superTypes)) {
+				$constraints = array_merge($childConstraints, $constraints);
 			}
 		}
-		if (is_array($constraints)) ksort($constraints);
 
 		return $constraints;
+	}
+
+	/**
+	 * @param $nodeTypeName
+	 *
+	 * @return NodeType
+	 * @throws \TYPO3\Flow\Mvc\Exception\StopActionException
+	 * @throws \TYPO3\TYPO3CR\Exception\NodeTypeNotFoundException
+	 */
+	private function getNodeType($nodeTypeName) {
+		if ($nodeTypeName !== null && !$this->nodeTypeManager->hasNodeType($nodeTypeName)) {
+			$this->outputLine('NodeType: %s not found.', [$nodeTypeName]);
+			$this->quit(1);
+		}
+
+		return $this->nodeTypeManager->getNodeType($nodeTypeName);
 	}
 
 	/**
 	 * Show all the Constraints for the specified NodeType
 	 *
 	 * @param string $nodeType
-	 * @param boolean $detail show detailed information about the inheritance
 	 * @param string $childNode show constraints for this child node, e.g. main
 	 *
 	 * @throws \TYPO3\Flow\Mvc\Exception\StopActionException
 	 * @throws \TYPO3\TYPO3CR\Exception\NodeTypeNotFoundException
 	 */
-	public function showConstraintsCommand($nodeType=null, $detail=false, $childNode='') {
+	public function showConstraintsCommand($nodeType=null, $childNode='') {
 
-		if ($nodeType !== null && !$this->nodeTypeManager->hasNodeType($nodeType)) {
-			$this->outputLine('NodeType: %s not found.', [$nodeType]);
-			$this->quit(1);
-		}
-
-		$nodeTypes = $nodeType !== null ? [$this->nodeTypeManager->getNodeType($nodeType)] :
+		$nodeTypes = $nodeType !== null ? [$this->getNodeType($nodeType)] :
 			$this->nodeTypeManager->getNodeTypes(true);
 
 		$ret = [];
 
 		/** @var NodeType $nodeType */
 		foreach ($nodeTypes as $nodeType) {
-			if ($detail) {
-				$ret[$nodeType->getName()] = $this->getConstraints($nodeType, false, $childNode);
-				foreach($nodeType->getDeclaredSuperTypes() as $super) {
-					if ($superConstraints =  $this->getConstraints($super, false, $childNode)) {
-						/** @var NodeType $super */
-						$ret['superTypes'][$super->getName()] = $superConstraints;
-					}
-				}
-			} else {
-				$ret[$nodeType->getName()] = $this->getConstraints($nodeType, true, $childNode);
-			}
+			$superTypes = [];
+			$constraints = $this->getConstraints($nodeType, $childNode, $superTypes);
+			if ($constraints) ksort($constraints);
+			$ret[$nodeType->getName()] = $constraints;
+			sort($superTypes);
+			$ret['inheritedFrom'] = $superTypes;
 		}
 
 		ksort($ret);
 		echo json_encode($ret, JSON_PRETTY_PRINT) . PHP_EOL;
+	}
+
+	/**
+	 * Show all inherited nodes from the specific one
+	 *
+	 * @param string $nodeType
+	 */
+	public function showInheritanceCommand($nodeType) {
+
+		$nodeType = $this->getNodeType($nodeType);
+
+		$parents = [];
+		foreach($this->nodeTypeManager->getNodeTypes() as $possibleParent) {
+			/** @var NodeType $possibleParent */
+			if (in_array($nodeType,$possibleParent->getDeclaredSuperTypes())) {
+				$parents[] = $possibleParent->getName();
+			}
+		}
+
+		if ($parents) ksort($parents);
+		echo json_encode($parents, JSON_PRETTY_PRINT) . PHP_EOL;
 	}
 
 }
