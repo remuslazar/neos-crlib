@@ -713,7 +713,7 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 		$nodeQuery = new NodeQuery($type);
 		$this->output->progressStart($nodeQuery->getCount());
 
-		foreach ( (new NodeIterator($nodeQuery->getQuery(), [], false)) as $node) {
+		foreach ( (new NodeIterator($nodeQuery->getQuery())) as $node) {
 			foreach ($node->getProperties() as $propertyName => $propertyValue) {
 				if (is_string($propertyValue)) {
 					$newValue = str_replace($CONTROL_CHARS, '', $propertyValue);
