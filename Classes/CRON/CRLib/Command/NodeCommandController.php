@@ -699,4 +699,36 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 		$this->output->progressFinish();
 	}
 
+	/**
+	 * Fixes control chars in node properties, which trigger a "Missing segment separator token after position"
+	 * Exception while rendering the content from cache.
+	 *
+	 * @param string $type NodeType, e.g. VENDOR.Site:MyNodeType
+	 * @param boolean $dryRun
+	 */
+	public function fixContentCommand($type=null, $dryRun=false) {
+
+		$CONTROL_CHARS = [ "\x02", "\x03", "\x1f" ];
+
+		$nodeQuery = new NodeQuery($type);
+		$this->output->progressStart($nodeQuery->getCount());
+
+		foreach ( (new NodeIterator($nodeQuery->getQuery(), [], false)) as $node) {
+			foreach ($node->getProperties() as $propertyName => $propertyValue) {
+				if (is_string($propertyValue)) {
+					$newValue = str_replace($CONTROL_CHARS, '', $propertyValue);
+					if ($newValue !== $propertyValue) {
+						if (!$dryRun) $node->setProperty($propertyName, $newValue);
+						$this->outputLine('Property %s in %s fixed.', [
+							$propertyName,
+							$node
+						]);
+					}
+				}
+			}
+			$this->output->progressAdvance();
+		}
+		$this->output->progressFinish();
+	}
+
 }
