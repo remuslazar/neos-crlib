@@ -690,7 +690,7 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 			$nodeData = $node->getNodeData();
 			if ($migration->isTransformable($nodeData)) {
 				$migration->execute($nodeData);
-				if (!$this->nodeDataRepository->isInRemovedNodes($nodeData)) {
+				if (!$this->nodeDataRepository->isInRemovedNodes($nodeData) && !$node->isRemoved()) {
 					$this->nodeDataRepository->update($nodeData);
 				}
 			}
