@@ -63,6 +63,8 @@ class NodeQuery {
 		if ($this->initialPathConstraint) $this->addPathConstraint($this->initialPathConstraint);
 		if ($this->initialTypeConstraint) $this->addTypeConstraint($this->initialTypeConstraint);
 		if ($this->initialSearchTermConstraint) $this->addSearchTermConstraint($this->initialSearchTermConstraint);
+		// set default ordering
+		$this->setOrderBy('path', 'ASC');
 	}
 
 	/**
@@ -106,12 +108,19 @@ class NodeQuery {
 	}
 
 	/**
+	 * @param string $sort The ordering expression.
+	 * @param string $order The ordering direction.
+	 */
+	public function setOrderBy($sort, $order) {
+		$this->queryBuilder->orderBy('n.'.$sort, $order);
+	}
+
+	/**
 	 * Gets the Doctrine ORM Query, results ordered by path ASC
 	 *
 	 * @return \Doctrine\ORM\Query
 	 */
 	public function getQuery() {
-		$this->queryBuilder->orderBy('n.path', 'ASC');
 		return $this->queryBuilder->getQuery();
 	}
 
