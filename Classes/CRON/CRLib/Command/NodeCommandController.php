@@ -673,8 +673,10 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 	 * @param string $type NodeType, e.g. VENDOR.Site:MyNodeType
 	 * @param string $property PropertyName, e.g. date
 	 * @param string $class Transformation class name, e.g. VENDOR\Site\Migration\Transformations\MyTransformation
+	 * @param string $path limit to this path only
 	 */
-	public function simplemigrateCommand($type, $property, $class) {
+	public function simplemigrateCommand($type, $property, $class, $path=null) {
+		$path = $path ? $this->getPath($path) : null;
 		$migration = $this->objectManager->get($class);
 
 		if (!$migration instanceof \TYPO3\TYPO3CR\Migration\Transformations\AbstractTransformation) {
@@ -684,19 +686,25 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 
 		$migration->property = $property;
 
-		$nodeQuery = new NodeQuery($type);
+		$nodeQuery = new NodeQuery($type, $path);
+		$numProcessed = 0;
 		$this->output->progressStart($nodeQuery->getCount());
-		foreach ( (new NodeIterator($nodeQuery->getQuery(), [], false)) as $node) {
-			$nodeData = $node->getNodeData();
+		$nodeQuery->setOrderBy('lastModificationDateTime', 'DESC');
+		foreach ( $nodeQuery->getQuery()->iterate(null, Query::HYDRATE_OBJECT) as $res ) {
+			/** @var NodeData $nodeData */
+			$nodeData=$res[0];
+
 			if ($migration->isTransformable($nodeData)) {
 				$migration->execute($nodeData);
-				if (!$this->nodeDataRepository->isInRemovedNodes($nodeData) && !$node->isRemoved()) {
+				$numProcessed++;
+				if (!$this->nodeDataRepository->isInRemovedNodes($nodeData) && !$nodeData->isRemoved()) {
 					$this->nodeDataRepository->update($nodeData);
 				}
 			}
 			$this->output->progressAdvance();
 		}
 		$this->output->progressFinish();
+		$this->output->outputLine('%d record(s) processed.', [$numProcessed]);
 	}
 
 	/**
