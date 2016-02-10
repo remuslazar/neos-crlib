@@ -136,11 +136,13 @@ class NodeQueryHelper implements \TYPO3\Eel\ProtectedContextAwareInterface {
 	 */
 	public function cacheLifetime($minimumLifetime=null) {
 
-		$min = [$minimumLifetime];
+		$min = [];
+
+		if ($minimumLifetime) $min[] = $minimumLifetime;
 		if ($val = $this->_cacheLifetime('hiddenBeforeDateTime')) $min[] = $val;
 		if ($val = $this->_cacheLifetime('hiddenAfterDateTime')) $min[] = $val;
 
-		return min($min);
+		return count($min) > 0 ? min($min) : null;
 	}
 
 	/**
