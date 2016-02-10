@@ -66,6 +66,8 @@ class NodeQueryHelper implements \TYPO3\Eel\ProtectedContextAwareInterface {
 		// TODO: multi-site compliance
 
 		$this->query = $this->nodeDataRepository->createQuery();
+		$this->constraints = [];
+
 		$this->matching($this->query->equals('removed', false));
 
 		$workspace = $site->getContext()->getWorkspace();
