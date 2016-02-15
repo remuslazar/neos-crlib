@@ -1,0 +1,5 @@
+TYPO3:
+  TypoScript:
+    defaultContext:
+      'CRLib': 'CRON\CRLib\Eel\Helper\NodeQueryHelper'
+
