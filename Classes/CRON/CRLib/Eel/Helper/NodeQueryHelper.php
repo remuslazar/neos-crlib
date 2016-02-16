@@ -96,16 +96,15 @@ class NodeQueryHelper implements \TYPO3\Eel\ProtectedContextAwareInterface {
 	 */
 	private function _cacheLifetime($property) {
 		$constraints = $this->constraints;
+		$query = clone $this->query;
 
 		$now = new \DateTime();
-		$constraints[] = $this->query->greaterThan($property, $now);
-
-		$this->query->matching($this->query->logicalAnd($constraints));
-		$this->query->setOrderings([$property => QueryInterface::ORDER_ASCENDING]);
-		$this->query->setLimit(1);
+		$constraints[] = $query->greaterThan($property, $now);
+		$query->matching($query->logicalAnd($constraints));
+		$query->setOrderings([$property => QueryInterface::ORDER_ASCENDING]);
 
 		/** @var NodeInterface $res */
-		if ($res = $this->query->execute()->getFirst()) {
+		if ($res = $query->execute()->getFirst()) {
 
 			$date = null;
 
