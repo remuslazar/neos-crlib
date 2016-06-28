@@ -20,6 +20,7 @@ use TYPO3\TYPO3CR\Command\NodeCommandControllerPlugin;
 use TYPO3\TYPO3CR\Domain\Model\NodeData;
 use TYPO3\TYPO3CR\Domain\Model\NodeInterface;
 use TYPO3\TYPO3CR\Domain\Service\Context;
+use TYPO3\TYPO3CR\Domain\Service\NodeServiceInterface;
 use TYPO3\TYPO3CR\Domain\Service\NodeTypeManager;
 
 /**
@@ -37,7 +38,7 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 
 	/**
 	 * @Flow\Inject
-	 * @var \TYPO3\Neos\Service\NodeNameGenerator
+	 * @var NodeServiceInterface
 	 */
 	protected $nodeNameGenerator;
 
