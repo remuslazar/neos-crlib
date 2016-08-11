@@ -6,8 +6,8 @@
 		"typo3/neos": "*"
 	},
 	"autoload": {
-		"psr-0": {
-			"CRON\\CRLib": "Classes"
+		"psr-4": {
+			"CRON\\CRLib\\": "Classes"
 		}
 	}
 }
