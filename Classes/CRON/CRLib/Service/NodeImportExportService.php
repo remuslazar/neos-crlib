@@ -9,12 +9,15 @@
 namespace CRON\CRLib\Service;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Types\Type;
+use Doctrine\ORM\EntityManager;
+use Doctrine\ORM\Proxy\Proxy;
+use TYPO3\Flow\Persistence\Aspect\PersistenceMagicInterface;
 use TYPO3\Flow\Persistence\Doctrine\DataTypes\JsonArrayType;
 use TYPO3\Flow\Annotations as Flow;
 use TYPO3\Media\Domain\Model\ImageVariant;
-use TYPO3\TYPO3CR\Domain\Model\NodeData;
 use TYPO3\TYPO3CR\Domain\Service\ImportExport\ImportExportPropertyMappingConfiguration;
 use TYPO3\Flow\Utility\Algorithms;
+use TYPO3\TYPO3CR\Utility;
 
 /**
  *
@@ -106,13 +109,15 @@ class NodeImportExportService {
 	 * @throws \Doctrine\DBAL\DBALException
 	 */
 	public function processJSONRecord($json) {
-		$connection = $this->entityManager->getConnection();
+	    /** @var EntityManager $em */
+	    $em = $this->entityManager;
+		$connection = $em->getConnection();
 
 		$jsonPropertiesDataTypeHandler = JsonArrayType::getType(JsonArrayType::FLOW_JSON_ARRAY);
 		$data = $this->convertJSONRecord($json);
 		$type = [];
 
-		$data['dimensionsHash'] = NodeData::sortDimensionValueArrayAndReturnDimensionsHash($data['dimensionValues']);
+		$data['dimensionsHash'] = Utility::sortDimensionValueArrayAndReturnDimensionsHash($data['dimensionValues']);
 
 		// calculate the parentPath
 		$data['parentPath'] = substr($data['path'], 0, strrpos($data['path'], '/'));
@@ -150,7 +155,7 @@ class NodeImportExportService {
 			$propertyValue = array($propertyValue);
 		}
 		foreach ($propertyValue as $possibleEntity) {
-			if (is_object($possibleEntity) && $possibleEntity instanceof \TYPO3\Flow\Persistence\Aspect\PersistenceMagicInterface) {
+			if (is_object($possibleEntity) && $possibleEntity instanceof PersistenceMagicInterface) {
 				$this->persistenceManager->isNewObject($possibleEntity) ? $this->persistenceManager->add($possibleEntity) : $this->persistenceManager->update($possibleEntity);
 
 				// TODO: Needed because the originalAsset will not cascade persist. We should find a generic solution to this.
@@ -264,7 +269,7 @@ class NodeImportExportService {
 				if ($objectIdentifier !== NULL) {
 					$newValue['__identifier'] = $objectIdentifier;
 				}
-				if ($propertyValue instanceof \Doctrine\ORM\Proxy\Proxy) {
+				if ($propertyValue instanceof Proxy) {
 					$className = get_parent_class($propertyValue);
 				} else {
 					$className = get_class($propertyValue);

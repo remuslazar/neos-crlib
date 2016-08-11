@@ -49,7 +49,12 @@ class NodeIterator implements \Iterator {
 	 */
 	protected $nodeDataRepository;
 
-	/**
+    /**
+     * @var array|null
+     */
+    private $contextOptions;
+
+    /**
 	 * @param Query $query The Query object
 	 * @param array $contextOptions Options for the contextFactory::create() method
 	 * @param bool $clearState perform a persistenceManager->clearState() call after BATCH_SIZE
