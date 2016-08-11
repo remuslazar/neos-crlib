@@ -20,10 +20,11 @@ class JSONFileReader implements \Iterator {
 	 * Open a JSON file (one record per line) and returns an Iterable object
 	 *
 	 * @param string $filename JSON file on the local filesystem
+     * @throws \Exception
 	 */
-	function __construct($filename) {
+	public function __construct($filename) {
 		$this->fp = fopen($filename, 'r');
-		if (!$this->fp) return false;
+		if (!$this->fp) throw new \Exception(sprintf('Cannot open file %s', $filename));
 		$this->key = 0;
 		$this->data = null; // current record
 	}

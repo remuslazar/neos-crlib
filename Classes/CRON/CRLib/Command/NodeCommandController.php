@@ -10,6 +10,7 @@ use CRON\CRLib\Utility\JSONArrayWriter;
 use CRON\CRLib\Utility\JSONFileReader;
 use CRON\CRLib\Utility\NodeIterator;
 use CRON\CRLib\Utility\NodeQuery;
+use Doctrine\Common\Util\ClassUtils;
 use Doctrine\ORM\EntityManager;
 use Doctrine\ORM\Query;
 use TYPO3\Flow\Annotations as Flow;
@@ -22,13 +23,15 @@ use TYPO3\TYPO3CR\Domain\Model\NodeInterface;
 use TYPO3\TYPO3CR\Domain\Service\Context;
 use TYPO3\TYPO3CR\Domain\Service\NodeServiceInterface;
 use TYPO3\TYPO3CR\Domain\Service\NodeTypeManager;
+use TYPO3\Flow\Cli\CommandController;
+use TYPO3\TYPO3CR\Migration\Transformations\AbstractTransformation;
 
 /**
  * @property Context context
  * @property string sitePath
  * @Flow\Scope("singleton")
  */
-class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
+class NodeCommandController extends CommandController {
 
 	/**
 	 * @Flow\Inject
@@ -98,7 +101,7 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 	 * @param string|null $typeFilter
 	 * @param bool $subtypes
 	 *
-	 * @return string[]|null node type names
+	 * @return string[]|string|null node type names
 	 */
 	private function getTypes($typeFilter, $subtypes=true) {
 		if ($typeFilter) {
@@ -136,6 +139,7 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 
 		$fp = null; if ($filename) { $fp = fopen($filename, 'w'); chdir(dirname($filename)); }
 
+		$step = 0;
 		$progress = $fp && ($count > 1000); if ($progress) { $this->output->progressStart($count); $step = $count / 100; }
 
 		$iterable = $nodeQuery->getQuery()->iterate(NULL, Query::HYDRATE_SCALAR);
@@ -248,7 +252,7 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 		if (!$yes && !$this->output->askConfirmation('Proceed with the import process?')) {
 			$this->quit(0);
 		}
-
+        $step = 0;
 		$progress = $count > 100; if ($progress) { $this->output->progressStart($count); $step = $count / 100; }
 
 		$importedCount=0;
@@ -290,7 +294,7 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 		$em = $this->objectManager->get('Doctrine\Common\Persistence\ObjectManager');
 		$em->getConnection()->setAutoCommit(true);
 		$em->getConnection()->executeQuery(
-			'delete from typo3_typo3cr_domain_model_nodedata where parentpath not in ("","/sites")');
+            'delete from typo3_typo3cr_domain_model_nodedata where parentpath not in ("","/sites")');
 	}
 
 	/**
@@ -301,7 +305,8 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 	 * @param string $type NodeType filter (csv list, e.g. TYPO3.Neos:Document)
 	 * @param bool $useSubtypes Also include inherited NodeTypes (default)
 	 * @param string $search Search string for exact match or regex like e.g. '/^myprefix/i'
-	 * @param string $property Limit the matching to this property (if unset search in the full JSON blob with LIKE %term%)
+	 * @param string $property Limit the matching to this property (if unset search in the full JSON blob with LIKE
+	 *     %term%)
 	 * @param int $limit Limit the result set
 	 * @param bool $count Display only the count and not the record data itself
 	 * @param bool $json Output data JSON formatted (one record per line)
@@ -360,7 +365,8 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 
 	private function listNodes($path, $type, $level, $indend = '') {
 		if ($childNodes = $this->context->getNode($path)->getChildNodes($type)) {
-			foreach ($childNodes as $childNode) {
+		    /** @var NodeInterface $childNode */
+            foreach ($childNodes as $childNode) {
 				$this->displayNodes([$childNode], $indend);
 				if ($level > 0) {
 					$this->listNodes($childNode->getPath(), $type, $level - 1, $indend . '  ');
@@ -384,10 +390,18 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 		$this->listNodes($path, $type, $depth);
 	}
 
-	private function reportMemoryUsage() {
+    /** @noinspection PhpUnusedPrivateMethodInspection */
+    private function reportMemoryUsage() {
 		file_put_contents('php://stderr', sprintf(' > mem: %.1f MB'."\n", memory_get_peak_usage()/1024/1024));
 	}
 
+    /**
+     * @param NodeInterface $node
+     * @param string $term
+     * @param string $propertyName
+     *
+     * @return bool
+     */
 	private function matchTermInProperty($node, $term, $propertyName) {
 		if (is_array($node)) {
 			return isset($node['n_properties'][$propertyName]) &&
@@ -432,12 +446,15 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 		}
 	}
 
+    /** @noinspection PhpUnusedPrivateMethodInspection */
 	/**
 	 * @param NodeInterface[] $nodes nodes to delete
 	 * @throws \TYPO3\Flow\Mvc\Exception\StopActionException
+     *
 	 */
-	private function removeAll($nodes) {
-		foreach ($nodes as $node) {
+    private function removeAll($nodes) {
+        /** @var NodeInterface $node */
+        foreach ($nodes as $node) {
 			$this->nodeDataRepository->removeAllInPath($node->getPath());
 			$node->remove();
 		}
@@ -570,7 +587,8 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 	 * @param string $path limit to this path only
 	 * @param string $type NodeType Filter
 	 * @param boolean $dryRun
-	 * @param string $force property name DANGER ZONE: this option will basically overwrite(!) existing values with the defaults for the selected property
+	 * @param string $force property name DANGER ZONE: this option will basically overwrite(!) existing values with the
+	 *     defaults for the selected property
 	 *
 	 */
 	public function setDefaultsCommand($path = null, $type = null, $dryRun = false, $force=null) {
@@ -630,7 +648,7 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 				} catch (\Exception $e) {
 					if ($dryRun) {
 						$this->outputLine('Property %s in %s references a missing %s record.',
-							[$name, $node, \Doctrine\Common\Util\ClassUtils::getRealClass(get_class($property))]);
+							[$name, $node, ClassUtils::getRealClass(get_class($property))]);
 					} else {
 						$node->removeProperty($name); // nullify the property to fix
 					}
@@ -680,7 +698,7 @@ class NodeCommandController extends \TYPO3\Flow\Cli\CommandController {
 		$path = $path ? $this->getPath($path) : null;
 		$migration = $this->objectManager->get($class);
 
-		if (!$migration instanceof \TYPO3\TYPO3CR\Migration\Transformations\AbstractTransformation) {
+		if (!$migration instanceof AbstractTransformation) {
 			$this->outputLine('ERROR: PHP-Class %s must be an instance of \TYPO3\TYPO3CR\Migration\Transformations\AbstractTransformation.', [$class]);
 			$this->quit(1);
 		}
