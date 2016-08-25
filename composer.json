@@ -3,11 +3,11 @@
 	"type": "typo3-flow-package",
 	"description": "TYPO3CR Utilities",
 	"require": {
-		"typo3/neos": "~2.0"
+		"typo3/neos": "~2.2"
 	},
 	"autoload": {
-		"psr-0": {
-			"CRON\\CRLib": "Classes"
+		"psr-4": {
+			"CRON\\CRLib\\": "Classes"
 		}
 	}
 }
