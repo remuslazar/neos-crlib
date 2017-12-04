@@ -74,8 +74,6 @@ class NodeQuery
         if ($this->initialSearchTermConstraint) {
             $this->addSearchTermConstraint($this->initialSearchTermConstraint);
         }
-        // set default ordering
-        $this->setOrderBy('path', 'ASC');
     }
 
     /**
@@ -140,6 +138,7 @@ class NodeQuery
      */
     public function getQuery()
     {
+        $this->setOrderBy('path', 'ASC');
         return $this->queryBuilder->getQuery();
     }
 
