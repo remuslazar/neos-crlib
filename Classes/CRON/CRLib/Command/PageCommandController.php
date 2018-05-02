@@ -118,16 +118,22 @@ class PageCommandController extends CommandController
      *
      * @param string $user use this user's workspace
      * @param int $depth depth, defaults to 1
+     * @param string $path , e.g. /news (don't use the /sites/dazsite prefix!)
      *
-     * @throws \Exception
      */
-    public function listCommand($user = 'admin', $depth=1)
+    public function listCommand($user = 'admin', $depth=1, $path = '')
     {
-        $this->setup($user);
-
-        $rootNode = $this->context->getNode($this->sitePath);
-        $printer = new NeosDocumentTreePrinter($rootNode, $depth);
-        $printer->printTree($this->output);
+        try {
+            $this->setup($user);
+            $rootNode = $this->context->getNode($this->sitePath . $path);
+            if (!$rootNode) {
+                throw new \Exception(sprintf('Could not find any node on path "%s"', $path));
+            }
+            $printer = new NeosDocumentTreePrinter($rootNode, $depth);
+            $printer->printTree($this->output);
+        } catch (\Exception $e) {
+            $this->outputLine('ERROR: %s', [$e->getMessage()]);
+        }
     }
 
 }
