@@ -8,6 +8,7 @@
 
 namespace CRON\CRLib\Command;
 
+use CRON\CRLib\Utility\NeosDocumentTreePrinter;
 use /** @noinspection PhpUnusedAliasInspection */
     TYPO3\Flow\Annotations as Flow;
 
@@ -110,6 +111,23 @@ class PageCommandController extends CommandController
               ['Site node name', $this->currentSite->getNodeName()],
             ],
             [ 'Key', 'Value']);
+    }
+
+    /**
+     * Lists all documents, optionally filtered by a prefix
+     *
+     * @param string $user use this user's workspace
+     * @param int $depth depth, defaults to 1
+     *
+     * @throws \Exception
+     */
+    public function listCommand($user = 'admin', $depth=1)
+    {
+        $this->setup($user);
+
+        $rootNode = $this->context->getNode($this->sitePath);
+        $printer = new NeosDocumentTreePrinter($rootNode, $depth);
+        $printer->printTree($this->output);
     }
 
 }
