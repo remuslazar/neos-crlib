@@ -9,12 +9,15 @@
 namespace CRON\CRLib\Command;
 
 use CRON\CRLib\Utility\NeosDocumentTreePrinter;
+use CRON\CRLib\Utility\NeosDocumentWalker;
 use /** @noinspection PhpUnusedAliasInspection */
     TYPO3\Flow\Annotations as Flow;
 
 use TYPO3\Flow\Cli\CommandController;
 use TYPO3\Neos\Domain\Model\Site;
-use TYPO3\TYPO3CR\Domain\Service\Context;
+use TYPO3\Neos\Domain\Service\ContentContext;
+use TYPO3\TYPO3CR\Domain\Model\NodeInterface;
+use TYPO3\TYPO3CR\Domain\Model\Workspace;
 
 /**
  * Class PageCommandController
@@ -27,7 +30,7 @@ use TYPO3\TYPO3CR\Domain\Service\Context;
  *
  * @package CRON\CRLib\Command
  *
- * @property Context context
+ * @property ContentContext context
  * @property string sitePath
  * @property string workspaceName
  * @property Site currentSite
@@ -131,6 +134,57 @@ class PageCommandController extends CommandController
             }
             $printer = new NeosDocumentTreePrinter($rootNode, $depth);
             $printer->printTree($this->output);
+        } catch (\Exception $e) {
+            $this->outputLine('ERROR: %s', [$e->getMessage()]);
+        }
+    }
+
+    /**
+     * Remove documents, optionally filtered by a prefix
+     *
+     * @param string $user use this user's workspace
+     * @param string $path , e.g. /news (don't use the /sites/dazsite prefix!)
+     * @param int $limit limit
+     */
+    public function removeCommand($user = 'admin', $path = '', $limit = 0)
+    {
+        try {
+            $this->setup($user);
+            $rootNode = $this->context->getNode($this->sitePath . $path);
+            if (!$rootNode) {
+                throw new \Exception(sprintf('Could not find any node on path "%s"', $path));
+            }
+            $walker = new NeosDocumentWalker($rootNode);
+
+            /** @var NodeInterface[] $nodesToDelete */
+            $nodesToDelete = $walker->getNodes($limit);
+
+            foreach ($nodesToDelete as $nodeToDelete) {
+                $nodeToDelete->remove();
+            }
+
+            $this->output->outputTable(array_map( function(NodeInterface $node) { return [$node]; }, $nodesToDelete),
+                ['Deleted Pages']);
+        } catch (\Exception $e) {
+            $this->outputLine('ERROR: %s', [$e->getMessage()]);
+        }
+    }
+
+    /**
+     * Publish all pending changes in the workspace
+     *
+     * @param string $user use this user's workspace
+     */
+    public function publishCommand($user = 'admin')
+    {
+        try {
+            $this->setup($user);
+            $liveWorkspace = $this->workspaceRepository->findByIdentifier('live');
+            if (!$liveWorkspace) {
+                throw new \Exception('Could not find the live workspace.');
+            }
+            /** @var Workspace $liveWorkspace */
+            $this->context->getWorkspace()->publish($liveWorkspace);
         } catch (\Exception $e) {
             $this->outputLine('ERROR: %s', [$e->getMessage()]);
         }
