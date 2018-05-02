@@ -29,7 +29,9 @@ class NeosDocumentTreePrinter
 
     /**
      * @param NodeInterface $document
-     * @param $currentDepth
+     * @param int $currentDepth
+     *
+     * @param array $currentURLPathPrefix
      *
      * @throws \TYPO3\TYPO3CR\Exception\NodeException
      */
@@ -59,7 +61,9 @@ class NeosDocumentTreePrinter
 
     /**
      * @param NodeInterface $document
-     * @param $currentDepth
+     * @param int $currentDepth
+     *
+     * @param array $currentURLPathPrefix
      *
      * @throws \TYPO3\TYPO3CR\Exception\NodeException
      */
@@ -86,6 +90,8 @@ class NeosDocumentTreePrinter
 
     /**
      * @param ConsoleOutput $output
+     *
+     * @param bool $asTable
      *
      * @throws \TYPO3\TYPO3CR\Exception\NodeException
      */
