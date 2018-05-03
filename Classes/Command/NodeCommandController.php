@@ -39,11 +39,11 @@ class NodeCommandController extends CommandController
      */
     protected $nodeTypeManager;
 
-	/**
-	 * @Flow\Inject
-	 * @var \TYPO3\Neos\Service\NodeNameGenerator
-	 */
-	protected $nodeNameGenerator;
+    /**
+     * @Flow\Inject
+     * @var \TYPO3\Neos\Service\NodeNameGenerator
+     */
+    protected $nodeNameGenerator;
 
     /**
      * @Flow\Inject
