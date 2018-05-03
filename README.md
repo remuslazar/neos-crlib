@@ -31,13 +31,43 @@ Then:
 composer require --update-no-dev cron/neos-crlib:dev-master
 ```
 
-Command Controller
-------------------
+Node Command Controller
+-----------------------
 
 The supplied command controller can perform some basic CRUD actions on TYPO3CR nodes, like creating, deleting
 and basic search.
 
 Call `flow help|grep node` to get a list of currently implemented commands. 
+
+Page Command Controller
+-----------------------
+
+There is also a separate `PageCommandController` which will do similar things but using the high level Neos Node API.
+This ensures that all hooks will be called correctly.
+
+Call `flow help|grep page:` to get a list of currently implemented commands. 
+
+#### Workspace
+
+The Page Command Controller will use the current workspace by default. There is a `publish` command to publish
+all changes to the live workspace.
+
+### Examples
+
+#### Bulk Delete nodes
+
+To bulk delete all nodes under a specified path, using a batch size of 100:
+
+```bash
+#!/bin/bash -ex
+
+while true ; do
+  ./flow page:remove --url /news --limit 100 && ./flow page:publish || exit 1
+done
+``` 
+
+Because the remove command will bail out with a retval != 0 on errors, the loop will break (because the bash `-e` option).
+
 
 NodeQuery and NodeIterator Classes
 -----------------------------------------
