@@ -7,7 +7,7 @@
 	},
 	"autoload": {
 		"psr-4": {
-			"CRON\\CRLib": "Classes"
+			"CRON\\CRLib\\": "Classes"
 		}
 	}
 }
