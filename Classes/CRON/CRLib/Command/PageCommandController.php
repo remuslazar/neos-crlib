@@ -176,11 +176,10 @@ class PageCommandController extends CommandController
 
             $this->output->outputTable(array_map( function(NodeInterface $node) { return [$node]; }, $nodesToDelete),
                 ['Deleted Pages']);
-            $this->sendAndExit(count($nodesToDelete) > 0 ? 0 : 1);
+            $this->quit(count($nodesToDelete) > 0 ? 0 : 1);
 
         } catch (\Exception $e) {
             $this->outputLine('ERROR: %s', [$e->getMessage()]);
-            $this->sendAndExit(10);
         }
     }
 
