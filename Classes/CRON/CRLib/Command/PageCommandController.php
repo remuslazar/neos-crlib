@@ -79,14 +79,16 @@ class PageCommandController extends CommandController
      *
      * @throws \Exception
      */
-    protected function setup($user)
+    protected function setup($user=null)
     {
-        // validate user name
-        $this->workspaceName = 'user-'.$user;
+        // validate user name, use the live workspace if null
+        $this->workspaceName = $user ? 'user-'.$user : 'live';
+
         /** @noinspection PhpUndefinedMethodInspection */
         if (!$this->workspaceRepository->findByName($this->workspaceName)->count()) {
             throw new \Exception(sprintf('Workspace "%s" is invalid', $this->workspaceName));
         }
+
         $this->context = $this->contextFactory->create([
             'workspaceName' => $this->workspaceName,
             'currentSite' => $this->currentSite,
@@ -185,6 +187,53 @@ class PageCommandController extends CommandController
             }
             /** @var Workspace $liveWorkspace */
             $this->context->getWorkspace()->publish($liveWorkspace);
+        } catch (\Exception $e) {
+            $this->outputLine('ERROR: %s', [$e->getMessage()]);
+        }
+    }
+
+    /**
+     * @param NodeInterface $document
+     * @param $pathSegment
+     *
+     * @return NodeInterface
+     * @throws \Exception
+     */
+    private function getChildDocumentByURIPathSegment(NodeInterface $document, $pathSegment) {
+        $found = array_filter($document->getChildNodes('TYPO3.Neos:Document'),
+            function (NodeInterface $document) use ($pathSegment ){
+                return $document->getProperty('uriPathSegment') === $pathSegment;
+            }
+        );
+
+        if (count($found) === 0) {
+            throw new \Exception(sprintf('Could not find any child document for URL path segment: "%s" on "%s',
+                $pathSegment,
+                $document->getPath()
+            ));
+        }
+        return array_pop($found);
+    }
+
+    /**
+     * Resolves a given URL to the current Neos node path
+     *
+     * @param string $url URL to resolve
+     */
+    public function resolveURLCommand($url)
+    {
+        try {
+            $this->setup();
+            $parts = explode('/', $url);
+
+            /** @var NodeInterface $document */
+            $document = $this->context->getNode($this->sitePath);
+
+            foreach ($parts as $segment) {
+                if (!$segment) { continue; }
+                $document = $this->getChildDocumentByURIPathSegment($document, $segment);
+            }
+            $this->outputLine('%s', [$document->getPath()]);
         } catch (\Exception $e) {
             $this->outputLine('ERROR: %s', [$e->getMessage()]);
         }
