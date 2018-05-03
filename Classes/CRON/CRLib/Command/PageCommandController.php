@@ -142,17 +142,26 @@ class PageCommandController extends CommandController
     }
 
     /**
-     * Remove documents, optionally filtered by a prefix
+     * Remove documents, optionally filtered by a prefix. The unix return code will be 0 (successful) only if at least
+     * one document was removed, else it will return 1. Useful for bash while loops.
      *
      * @param string $user use this user's workspace
      * @param string $path , e.g. /news (don't use the /sites/dazsite prefix!)
+     * @param string $url use the URL instead of o path
      * @param int $limit limit
      */
-    public function removeCommand($user = 'admin', $path = '', $limit = 0)
+    public function removeCommand($user = 'admin', $path = '', $url = '', $limit = 0)
     {
         try {
             $this->setup($user);
-            $rootNode = $this->context->getNode($this->sitePath . $path);
+
+            if ($url) {
+                $rootNode = $this->context->getNode($this->sitePath);
+                $rootNode = $this->context->getNode($this->getNodePathForURL($rootNode, $url));
+            } else {
+                $rootNode = $this->context->getNode($this->sitePath . $path);
+            }
+
             if (!$rootNode) {
                 throw new \Exception(sprintf('Could not find any node on path "%s"', $path));
             }
@@ -167,8 +176,11 @@ class PageCommandController extends CommandController
 
             $this->output->outputTable(array_map( function(NodeInterface $node) { return [$node]; }, $nodesToDelete),
                 ['Deleted Pages']);
+            $this->sendAndExit(count($nodesToDelete) > 0 ? 0 : 1);
+
         } catch (\Exception $e) {
             $this->outputLine('ERROR: %s', [$e->getMessage()]);
+            $this->sendAndExit(10);
         }
     }
 
@@ -190,6 +202,24 @@ class PageCommandController extends CommandController
         } catch (\Exception $e) {
             $this->outputLine('ERROR: %s', [$e->getMessage()]);
         }
+    }
+
+    /**
+     * @param NodeInterface $document
+     * @param $url
+     *
+     * @return string
+     *
+     * @throws \Exception
+     */
+    private function getNodePathForURL(NodeInterface $document, $url) {
+        $parts = explode('/', $url);
+        foreach ($parts as $segment) {
+            if (!$segment) { continue; }
+            $document = $this->getChildDocumentByURIPathSegment($document, $segment);
+        }
+
+        return $document->getPath();
     }
 
     /**
@@ -224,16 +254,10 @@ class PageCommandController extends CommandController
     {
         try {
             $this->setup();
-            $parts = explode('/', $url);
 
             /** @var NodeInterface $document */
             $document = $this->context->getNode($this->sitePath);
-
-            foreach ($parts as $segment) {
-                if (!$segment) { continue; }
-                $document = $this->getChildDocumentByURIPathSegment($document, $segment);
-            }
-            $this->outputLine('%s', [$document->getPath()]);
+            $this->outputLine('%s', [$this->getNodePathForURL($document, $url)]);
         } catch (\Exception $e) {
             $this->outputLine('ERROR: %s', [$e->getMessage()]);
         }
