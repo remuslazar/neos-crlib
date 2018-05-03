@@ -62,7 +62,8 @@ To bulk delete all nodes under a specified path, using a batch size of 100:
 #!/bin/bash -ex
 
 while true ; do
-  ./flow page:remove --url /news --limit 100 && ./flow page:publish || exit 1
+  ./flow page:remove --url /news --limit 100
+  ./flow page:publish
 done
 ``` 
 
