@@ -54,6 +54,12 @@ class PageCommandController extends CommandController
 
     /**
      * @Flow\Inject
+     * @var \TYPO3\TYPO3CR\Domain\Service\NodeTypeManager
+     */
+    protected $nodeTypeManager;
+
+    /**
+     * @Flow\Inject
      * @var \TYPO3\TYPO3CR\Domain\Repository\WorkspaceRepository
      */
     protected $workspaceRepository;
@@ -267,6 +273,49 @@ class PageCommandController extends CommandController
         } catch (\Exception $e) {
             $this->outputLine('ERROR: %s', [$e->getMessage()]);
         }
+    }
+
+    /**
+     * Creates a new page
+     *
+     * @param string $parentUrl parent of the new page to be created (must exist), e.g. /news
+     * @param string $name name of the node, will also be used for the URL segment
+     * @param string $type node type, defaults to TYPO3.Neos.NodeTypes:Page
+     * @param string $properties node properties, as JSON, e.g. '{"title":"My Fancy Title"}'
+     * @param string $user use this user's workspace (use 0 to use the live workspace)
+     */
+    public function createCommand($parentUrl, $name, $type = 'TYPO3.Neos.NodeTypes:Page', $properties = null, $user = 'admin')
+    {
+        try {
+            $this->setup($user);
+            if (!$this->nodeTypeManager->hasNodeType($type)) {
+                throw new \Exception('specified node type is not valid');
+            }
+
+            $data = [];
+            if ($properties) {
+                $data = json_decode($properties, true);
+                if ($data === null) {
+                    throw new \Exception('could not decode JSON data');
+                }
+            }
+            $nodeType = $this->nodeTypeManager->getNodeType($type);
+            $rootNode = $this->context->getNode($this->sitePath);
+            $parentNode = $this->context->getNode($this->getNodePathForURL($rootNode, $parentUrl));
+            $newNode = $parentNode->createNode($name, $nodeType);
+
+            if ($data) {
+                foreach ($data as $name => $value) {
+                    $newNode->setProperty($name, $value);
+                }
+            }
+
+            $this->outputLine(sprintf('%s created.', $newNode));
+
+        } catch (\Exception $e) {
+            $this->outputLine('ERROR: %s', [$e->getMessage()]);
+        }
+
     }
 
 }
