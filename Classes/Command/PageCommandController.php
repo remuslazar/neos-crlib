@@ -178,7 +178,8 @@ class PageCommandController extends CommandController
             $this->cr->setup($user);
             $nodeType = $this->cr->getNodeType($type);
             $parentNode = $this->cr->getNodeForURL($parentUrl);
-            $newNode = $parentNode->createNode($name, $nodeType);
+            $nodeName = $this->cr->generateUniqNodeName($parentNode, $name);
+            $newNode = $parentNode->createNode($nodeName, $nodeType);
 
             if ($properties) {
                 $this->cr->setNodeProperties($newNode, $properties);
