@@ -14,6 +14,7 @@ use /** @noinspection PhpUnusedAliasInspection */
 use TYPO3\Neos\Domain\Model\Site;
 use TYPO3\Neos\Domain\Service\ContentContext;
 use TYPO3\TYPO3CR\Domain\Model\NodeInterface;
+use TYPO3\TYPO3CR\Domain\Model\Workspace;
 
 /**
  * Content Repository related logic
@@ -100,7 +101,7 @@ class CRService
      *
      * @throws \Exception
      */
-    private function getNodePathForURL(NodeInterface $document, $url) {
+    public function getNodePathForURL(NodeInterface $document, $url) {
         $parts = explode('/', $url);
         foreach ($parts as $segment) {
             if (!$segment) { continue; }
@@ -182,6 +183,34 @@ class CRService
     public function getNodeForURL($url)
     {
         return $this->context->getNode($this->getNodePathForURL($this->rootNode, $url));
+    }
+
+    /**
+     * Fetches an existing node by relative path
+     *
+     * @param string $path relative path of the page
+     *
+     * @return NodeInterface
+     * @throws \Exception
+     */
+    public function getNodeForPath($path)
+    {
+        return $this->context->getNode($this->sitePath . $path);
+    }
+
+    /**
+     * Publishes the configured workspace
+     *
+     * @throws \Exception
+     */
+    public function publish()
+    {
+        $liveWorkspace = $this->workspaceRepository->findByIdentifier('live');
+        if (!$liveWorkspace) {
+            throw new \Exception('Could not find the live workspace.');
+        }
+        /** @var Workspace $liveWorkspace */
+        $this->context->getWorkspace()->publish($liveWorkspace);
     }
 
     /**

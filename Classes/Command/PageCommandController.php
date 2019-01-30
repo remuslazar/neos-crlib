@@ -8,16 +8,13 @@
 
 namespace CRON\CRLib\Command;
 
-use CRON\CRLib\Utility\NeosDocumentTreePrinter;
-use CRON\CRLib\Utility\NeosDocumentWalker;
 use /** @noinspection PhpUnusedAliasInspection */
     TYPO3\Flow\Annotations as Flow;
 
+use CRON\CRLib\Utility\NeosDocumentTreePrinter;
+use CRON\CRLib\Utility\NeosDocumentWalker;
 use TYPO3\Flow\Cli\CommandController;
-use TYPO3\Neos\Domain\Model\Site;
-use TYPO3\Neos\Domain\Service\ContentContext;
 use TYPO3\TYPO3CR\Domain\Model\NodeInterface;
-use TYPO3\TYPO3CR\Domain\Model\Workspace;
 
 /**
  * Class PageCommandController
@@ -30,11 +27,6 @@ use TYPO3\TYPO3CR\Domain\Model\Workspace;
  *
  * @package CRON\CRLib\Command
  *
- * @property ContentContext context
- * @property string sitePath
- * @property string workspaceName
- * @property Site currentSite
- *
  * @Flow\Scope("singleton")
  */
 class PageCommandController extends CommandController
@@ -42,66 +34,9 @@ class PageCommandController extends CommandController
 
     /**
      * @Flow\Inject
-     * @var \TYPO3\TYPO3CR\Domain\Service\ContextFactoryInterface
+     * @var \CRON\CRLib\Service\CRService
      */
-    protected $contextFactory;
-
-    /**
-     * @Flow\Inject
-     * @var \TYPO3\Neos\Domain\Repository\SiteRepository
-     */
-    protected $siteRepository;
-
-    /**
-     * @Flow\Inject
-     * @var \TYPO3\TYPO3CR\Domain\Service\NodeTypeManager
-     */
-    protected $nodeTypeManager;
-
-    /**
-     * @Flow\Inject
-     * @var \TYPO3\TYPO3CR\Domain\Repository\WorkspaceRepository
-     */
-    protected $workspaceRepository;
-
-    /**
-     * @throws \Exception
-     */
-    public function initializeObject()
-    {
-        /** @var Site $currentSite */
-        $currentSite = $this->siteRepository->findFirstOnline();
-        if (!$currentSite) {
-            throw new \Exception('No site found');
-        }
-        $this->sitePath = '/sites/' . $currentSite->getNodeName();
-        $this->currentSite = $currentSite;
-    }
-
-    /**
-     * Setup and configure the context to use, take care of the arguments like user name etc.
-     *
-     * @param string $user
-     *
-     * @throws \Exception
-     */
-    protected function setup($user=null)
-    {
-        // validate user name, use the live workspace if null
-        $this->workspaceName = $user ? 'user-'.$user : 'live';
-
-        /** @noinspection PhpUndefinedMethodInspection */
-        if (!$this->workspaceRepository->findByName($this->workspaceName)->count()) {
-            throw new \Exception(sprintf('Workspace "%s" is invalid', $this->workspaceName));
-        }
-
-        $this->context = $this->contextFactory->create([
-            'workspaceName' => $this->workspaceName,
-            'currentSite' => $this->currentSite,
-            'invisibleContentShown' => true,
-            'inaccessibleContentShown' => true
-        ]);
-    }
+    protected $cr;
 
     /**
      * Shows the current configuration of the working environment
@@ -113,13 +48,13 @@ class PageCommandController extends CommandController
      */
     public function infoCommand($user = 'admin')
     {
-        $this->setup($user);
+        $this->cr->setup($user);
 
         $this->output->outputTable(
             [
-              ['Current Site Name', $this->currentSite->getName()],
-              ['Workspace Name', $this->workspaceName],
-              ['Site node name', $this->currentSite->getNodeName()],
+              ['Current Site Name', $this->cr->currentSite->getName()],
+              ['Workspace Name', $this->cr->workspaceName],
+              ['Site node name', $this->cr->currentSite->getNodeName()],
             ],
             [ 'Key', 'Value']);
     }
@@ -135,8 +70,8 @@ class PageCommandController extends CommandController
     public function listCommand($user = 'admin', $depth=1, $path = '')
     {
         try {
-            $this->setup($user);
-            $rootNode = $this->context->getNode($this->sitePath . $path);
+            $this->cr->setup($user);
+            $rootNode = $this->cr->getNodeForPath($path);
             if (!$rootNode) {
                 throw new \Exception(sprintf('Could not find any node on path "%s"', $path));
             }
@@ -161,13 +96,12 @@ class PageCommandController extends CommandController
     public function removeCommand($user = 'admin', $path = '', $url = '', $limit = 0)
     {
         try {
-            $this->setup($user);
+            $this->cr->setup($user);
 
             if ($url) {
-                $rootNode = $this->context->getNode($this->sitePath);
-                $rootNode = $this->context->getNode($this->getNodePathForURL($rootNode, $url));
+                $rootNode = $this->cr->getNodeForURL($url);
             } else {
-                $rootNode = $this->context->getNode($this->sitePath . $path);
+                $rootNode = $this->cr->getNodeForPath($path);
             }
 
             if (!$rootNode) {
@@ -203,13 +137,8 @@ class PageCommandController extends CommandController
     public function publishCommand($user = 'admin')
     {
         try {
-            $this->setup($user);
-            $liveWorkspace = $this->workspaceRepository->findByIdentifier('live');
-            if (!$liveWorkspace) {
-                throw new \Exception('Could not find the live workspace.');
-            }
-            /** @var Workspace $liveWorkspace */
-            $this->context->getWorkspace()->publish($liveWorkspace);
+            $this->cr->setup($user);
+            $this->cr->publish();
         } catch (\Exception $e) {
             $this->outputLine('ERROR: %s', [$e->getMessage()]);
             $this->quit(1);
@@ -217,59 +146,18 @@ class PageCommandController extends CommandController
     }
 
     /**
-     * @param NodeInterface $document
-     * @param $url
-     *
-     * @return string
-     *
-     * @throws \Exception
-     */
-    private function getNodePathForURL(NodeInterface $document, $url) {
-        $parts = explode('/', $url);
-        foreach ($parts as $segment) {
-            if (!$segment) { continue; }
-            $document = $this->getChildDocumentByURIPathSegment($document, $segment);
-        }
-
-        return $document->getPath();
-    }
-
-    /**
-     * @param NodeInterface $document
-     * @param $pathSegment
-     *
-     * @return NodeInterface
-     * @throws \Exception
-     */
-    private function getChildDocumentByURIPathSegment(NodeInterface $document, $pathSegment) {
-        $found = array_filter($document->getChildNodes('TYPO3.Neos:Document'),
-            function (NodeInterface $document) use ($pathSegment ){
-                return $document->getProperty('uriPathSegment') === $pathSegment;
-            }
-        );
-
-        if (count($found) === 0) {
-            throw new \Exception(sprintf('Could not find any child document for URL path segment: "%s" on "%s',
-                $pathSegment,
-                $document->getPath()
-            ));
-        }
-        return array_pop($found);
-    }
-
-    /**
      * Resolves a given URL to the current Neos node path
      *
      * @param string $url URL to resolve
+     * @param string $user use this user's workspace
      */
-    public function resolveURLCommand($url)
+    public function resolveURLCommand($url, $user = 'admin')
     {
         try {
-            $this->setup();
-
+            $this->cr->setup($user);
             /** @var NodeInterface $document */
-            $document = $this->context->getNode($this->sitePath);
-            $this->outputLine('%s', [$this->getNodePathForURL($document, $url)]);
+            $document = $this->cr->getNodeForPath('');
+            $this->outputLine('%s', [$this->cr->getNodePathForURL($document, $url)]);
         } catch (\Exception $e) {
             $this->outputLine('ERROR: %s', [$e->getMessage()]);
         }
@@ -287,29 +175,14 @@ class PageCommandController extends CommandController
     public function createCommand($parentUrl, $name, $type = 'TYPO3.Neos.NodeTypes:Page', $properties = null, $user = 'admin')
     {
         try {
-            $this->setup($user);
-            if (!$this->nodeTypeManager->hasNodeType($type)) {
-                throw new \Exception('specified node type is not valid');
-            }
-
-            $data = [];
-            if ($properties) {
-                $data = json_decode($properties, true);
-                if ($data === null) {
-                    throw new \Exception('could not decode JSON data');
-                }
-            }
-            $nodeType = $this->nodeTypeManager->getNodeType($type);
-            $rootNode = $this->context->getNode($this->sitePath);
-            $parentNode = $this->context->getNode($this->getNodePathForURL($rootNode, $parentUrl));
+            $this->cr->setup($user);
+            $nodeType = $this->cr->getNodeType($type);
+            $parentNode = $this->cr->getNodeForURL($parentUrl);
             $newNode = $parentNode->createNode($name, $nodeType);
 
-            if ($data) {
-                foreach ($data as $name => $value) {
-                    $newNode->setProperty($name, $value);
-                }
+            if ($properties) {
+                $this->cr->setNodeProperties($newNode, $properties);
             }
-
             $this->outputLine(sprintf('%s created.', $newNode));
 
         } catch (\Exception $e) {
