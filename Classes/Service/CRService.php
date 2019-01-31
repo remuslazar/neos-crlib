@@ -69,14 +69,14 @@ class CRService
     /**
      * Setup and configure the context to use, take care of the arguments like user name etc.
      *
-     * @param string $user
+     * @param string $workspace workspace name, defaults to the live workspace
      *
      * @throws \Exception
      */
-    public function setup($user=null)
+    public function setup($workspace = 'live')
     {
         // validate user name, use the live workspace if null
-        $this->workspaceName = $user ? 'user-'.$user : 'live';
+        $this->workspaceName = $workspace;
 
         /** @noinspection PhpUndefinedMethodInspection */
         if (!$this->workspaceRepository->findByName($this->workspaceName)->count()) {

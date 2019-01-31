@@ -41,14 +41,13 @@ class PageCommandController extends CommandController
     /**
      * Shows the current configuration of the working environment
      *
-     * @param string $user username to use, defaults to the admin user. This will also use the user's workspace by
-     *     default for all operations.
+     * @param string $workspace workspace to use, e.g. 'user-admin', defaults to 'live'
      *
      * @throws \Exception
      */
-    public function infoCommand($user = 'admin')
+    public function infoCommand($workspace = 'live')
     {
-        $this->cr->setup($user);
+        $this->cr->setup($workspace);
 
         $this->output->outputTable(
             [
@@ -62,15 +61,15 @@ class PageCommandController extends CommandController
     /**
      * Lists all documents, optionally filtered by a prefix
      *
-     * @param string $user use this user's workspace
      * @param int $depth depth, defaults to 1
      * @param string $path , e.g. /news (don't use the /sites/dazsite prefix!)
+     * @param string $workspace workspace to use, e.g. 'user-admin', defaults to 'live'
      *
      */
-    public function listCommand($user = 'admin', $depth=1, $path = '')
+    public function listCommand($depth=1, $path = '', $workspace = 'live')
     {
         try {
-            $this->cr->setup($user);
+            $this->cr->setup($workspace);
             $rootNode = $this->cr->getNodeForPath($path);
             if (!$rootNode) {
                 throw new \Exception(sprintf('Could not find any node on path "%s"', $path));
@@ -86,17 +85,17 @@ class PageCommandController extends CommandController
      * Remove documents, optionally filtered by a prefix. The unix return code will be 0 (successful) only if at least
      * one document was removed, else it will return 1. Useful for bash while loops.
      *
-     * @param string $user use this user's workspace
      * @param string $path , e.g. /news (don't use the /sites/dazsite prefix!)
      * @param string $url use the URL instead of o path
      * @param int $limit limit
+     * @param string $workspace workspace to use, e.g. 'user-admin', defaults to 'live'
      *
      * @throws \TYPO3\Flow\Mvc\Exception\StopActionException
      */
-    public function removeCommand($user = 'admin', $path = '', $url = '', $limit = 0)
+    public function removeCommand($path = '', $url = '', $limit = 0, $workspace = 'live')
     {
         try {
-            $this->cr->setup($user);
+            $this->cr->setup($workspace);
 
             if ($url) {
                 $rootNode = $this->cr->getNodeForURL($url);
@@ -130,14 +129,14 @@ class PageCommandController extends CommandController
     /**
      * Publish all pending changes in the workspace
      *
-     * @param string $user use this user's workspace
+     * @param string $workspace workspace to use, e.g. 'user-admin', defaults to 'live'
      *
      * @throws \TYPO3\Flow\Mvc\Exception\StopActionException
      */
-    public function publishCommand($user = 'admin')
+    public function publishCommand($workspace = 'live')
     {
         try {
-            $this->cr->setup($user);
+            $this->cr->setup($workspace);
             $this->cr->publish();
         } catch (\Exception $e) {
             $this->outputLine('ERROR: %s', [$e->getMessage()]);
@@ -149,12 +148,12 @@ class PageCommandController extends CommandController
      * Resolves a given URL to the current Neos node path
      *
      * @param string $url URL to resolve
-     * @param string $user use this user's workspace
+     * @param string $workspace workspace to use, e.g. 'user-admin', defaults to 'live'
      */
-    public function resolveURLCommand($url, $user = 'admin')
+    public function resolveURLCommand($url, $workspace = 'live')
     {
         try {
-            $this->cr->setup($user);
+            $this->cr->setup($workspace);
             /** @var NodeInterface $document */
             $document = $this->cr->getNodeForPath('');
             $this->outputLine('%s', [$this->cr->getNodePathForURL($document, $url)]);
@@ -170,12 +169,12 @@ class PageCommandController extends CommandController
      * @param string $name name of the node, will also be used for the URL segment
      * @param string $type node type, defaults to TYPO3.Neos.NodeTypes:Page
      * @param string $properties node properties, as JSON, e.g. '{"title":"My Fancy Title"}'
-     * @param string $user use this user's workspace (use 0 to use the live workspace)
+     * @param string $workspace workspace to use, e.g. 'user-admin', defaults to 'live'
      */
-    public function createCommand($parentUrl, $name, $type = 'TYPO3.Neos.NodeTypes:Page', $properties = null, $user = 'admin')
+    public function createCommand($parentUrl, $name, $type = 'TYPO3.Neos.NodeTypes:Page', $properties = null, $workspace = 'live')
     {
         try {
-            $this->cr->setup($user);
+            $this->cr->setup($workspace);
             $nodeType = $this->cr->getNodeType($type);
             $parentNode = $this->cr->getNodeForURL($parentUrl);
             $nodeName = $this->cr->generateUniqNodeName($parentNode, $name);

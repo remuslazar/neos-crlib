@@ -26,12 +26,12 @@ class ContentCommandController extends CommandController
      * List the content of a specified page
      * @param string $url URL of the page, e.g. '/news'
      * @param string $collection collection node name, defaults to 'main'
-     * @param string $user use this user's workspace (use 0 to use the live workspace)
+     * @param string $workspace workspace to use, e.g. 'user-admin', defaults to 'live'
      */
-    public function listCommand($url, $collection = 'main', $user = 'admin') {
+    public function listCommand($url, $collection = 'main', $workspace = 'live') {
 
         try {
-            $this->cr->setup($user);
+            $this->cr->setup($workspace);
             $page = $this->cr->getNodeForURL($url);
             $collectionNode = $page->getNode($collection);
 
@@ -56,7 +56,7 @@ class ContentCommandController extends CommandController
      * @param string $type node type, defaults to TYPO3.Neos.NodeTypes:Text
      * @param string $collection collection name, defaults to 'main'
      * @param string $name name of the node, leave empty to get a random uuid like name
-     * @param string $user use this user's workspace (use 0 to use the live workspace)
+     * @param string $workspace workspace to use, e.g. 'user-admin', defaults to 'live'
      */
     public function createCommand(
         $url,
@@ -64,10 +64,10 @@ class ContentCommandController extends CommandController
         $type = 'TYPO3.Neos.NodeTypes:Text',
         $collection = 'main',
         $name = null,
-        $user = 'admin'
+        $workspace = 'live'
     ) {
         try {
-            $this->cr->setup($user);
+            $this->cr->setup($workspace);
 
             $nodeType = $this->cr->getNodeType($type);
             $page = $this->cr->getNodeForURL($url);
