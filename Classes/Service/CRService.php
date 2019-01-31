@@ -168,6 +168,15 @@ class CRService
         }
 
         foreach ($data as $name => $value) {
+            if (preg_match('/^path:\/\//', $value)) {
+                $path = str_replace('path://', '', $value);
+                $value = $this->rootNode->getNode($path);
+                if (!$value) {
+                    throw new \Exception('could not find path reference');
+                }
+            } else if (preg_match('/^\d{4}-\d{2}-\d{2}/', $value)) {
+                $value = new \DateTime($value);
+            }
             $node->setProperty($name, $value);
         }
     }
