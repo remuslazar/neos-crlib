@@ -8,9 +8,9 @@
 
 namespace CRON\CRLib\Service;
 
-
 use /** @noinspection PhpUnusedAliasInspection */
     TYPO3\Flow\Annotations as Flow;
+
 use TYPO3\Neos\Domain\Model\Site;
 use TYPO3\Neos\Domain\Service\ContentContext;
 use TYPO3\TYPO3CR\Domain\Model\NodeInterface;
