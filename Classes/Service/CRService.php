@@ -168,15 +168,7 @@ class CRService
         }
 
         foreach ($data as $name => $value) {
-            if (preg_match('/^path:\/\//', $value)) {
-                $path = str_replace('path://', '', $value);
-                $value = $this->rootNode->getNode($path);
-                if (!$value) {
-                    throw new \Exception('could not find path reference');
-                }
-            } else if (preg_match('/^\d{4}-\d{2}-\d{2}/', $value)) {
-                $value = new \DateTime($value);
-            }
+            $value = $this->propertyMapper($node, $name, $value);
             $node->setProperty($name, $value);
         }
     }
@@ -244,6 +236,58 @@ class CRService
         }
         $this->sitePath = '/sites/' . $currentSite->getNodeName();
         $this->currentSite = $currentSite;
+    }
+
+    /**
+     * Map a String Value to the corresponding Neos Object
+     *
+     * @param $node NodeInterface
+     * @param $propertyName string
+     * @param $stringInput string
+     *
+     * @return mixed
+     * @throws \Exception
+     */
+    protected function propertyMapper($node, $propertyName, $stringInput)
+    {
+
+        if ($stringInput === 'NULL') {
+            return null;
+        }
+
+        switch ($node->getNodeType()->getConfiguration('properties.' . $propertyName . '.type')) {
+
+            case 'references':
+                $value = array_map(function ($path) { return $this->getNodeForPath($path); },
+                    preg_split('/,\w*/', $stringInput));
+                break;
+
+            case 'reference':
+                $value = $this->getNodeForPath($stringInput);
+                break;
+
+            case 'DateTime':
+                $value = new \DateTime($stringInput);
+                break;
+
+            case 'integer':
+                $value = intval($stringInput);
+                break;
+
+            case 'boolean':
+                $value = boolval($stringInput);
+                break;
+
+            case \TYPO3\Media\Domain\Model\ImageInterface::class:
+                throw new \Exception('mapping an image type currently not implemented');
+                break;
+
+            default:
+                $value = $stringInput;
+                break;
+        }
+
+        return $value;
     }
 
 }
